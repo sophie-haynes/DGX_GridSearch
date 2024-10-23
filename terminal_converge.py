@@ -11,8 +11,13 @@ from torch.utils.tensorboard import SummaryWriter
 import os
 import datetime
 import argparse
+# gradcam packages
+import cv2
+from pytorch_grad_cam import GradCAM
+from pytorch_grad_cam.utils.model_targets import ClassifierOutputTarget
+import csv
 
-
+# Image Helpers ==============================================================
 crop_dict = {
     # data      mean         std
     'cxr14': [[162.7414], [44.0700]],
@@ -61,6 +66,70 @@ def get_cxr_eval_transforms(crop_size,normalise):
         normalise
     ]
     return cxr_transform_list
+
+# Grad-CAM Helpers =================================================================================
+
+def save_worst_images(worst_iou_images, dataset_name, epoch, save_dir):
+    """Save the 25 worst IoU images for further analysis."""
+    save_path = os.path.join(save_dir, "images",f"{dataset_name}_worst_iou_epoch_{epoch}")
+    os.makedirs(save_path, exist_ok=True)
+
+    for i, (iou, image) in enumerate(worst_iou_images):
+        image_np = image.cpu().numpy().transpose(1, 2, 0)  # Convert to NumPy array (HWC)
+        image_np = (image_np * 255).astype(np.uint8)  # Convert to 8-bit for saving
+
+        # Save image with IoU in the filename
+        cv2.imwrite(os.path.join(save_path, f"iou_{iou:.4f}_image_{i}.png"), image_np)
+
+def calculate_iou(cam_mask, bounding_boxes):
+    """Calculate IoU between CAM mask and ground-truth bounding boxes."""
+    # cam_mask = (cam_mask > 0.5).float()  # Binary mask
+    ious = []
+    for i in range(cam_mask.size(0)):
+        box = bounding_boxes[i]  # Get ground-truth box (xmin, ymin, xmax, ymax)
+        cam_region = cam_mask[i].nonzero()  # Get CAM region
+        
+        if cam_region.size(0) == 0:  # If no region, IoU is 0
+            ious.append(0.0)
+            continue
+        
+        # Create a mask for the bounding box
+        box_mask = torch.zeros_like(cam_mask[i])
+        box_mask[box[1]:box[3], box[0]:box[2]] = 1.0
+
+        # Calculate intersection and union between CAM region and ground-truth box
+        intersection = (cam_mask[i] * box_mask).sum()
+        union = (cam_mask[i] + box_mask).clamp(0, 1).sum()
+
+        iou = intersection / union
+        ious.append(iou.item())
+
+    return ious
+
+def read_bounding_boxes(bbox_csv_path):
+    """Read the bounding box CSV file and return a dictionary with image names as keys and bounding boxes as values."""
+    bbox_dict = {}
+
+    with open(bbox_csv_path, newline='') as csvfile:
+        reader = csv.DictReader(csvfile)
+        for row in reader:
+            img_name = row['img_name']
+            bbox_224 = eval(row['bbox_224'])  # Convert string to a list (e.g., "[32, 119, 15, 13]" -> [32, 119, 15, 13])
+            bbox_dict[img_name] = bbox_224  # Store the bounding box (x, y, width, height)
+    
+    return bbox_dict
+
+class ImageFolderWithPaths(torchvision.datasets.ImageFolder):
+
+    def __getitem__(self, index):
+  
+        img, label = super(ImageFolderWithPaths, self).__getitem__(index)
+        
+        path = self.imgs[index][0]
+        
+        return (img, label ,path)
+
+# Model Helpers ====================================================================================
 def set_seed(seed):
     """Set the seed for reproducibility."""
     torch.manual_seed(seed)
@@ -68,6 +137,7 @@ def set_seed(seed):
         torch.cuda.manual_seed_all(seed)
     random.seed(seed)
     np.random.seed(seed)
+    
 
 # def evaluate_model(model, dataloader, device):
 def evaluate_model(model, dataloader, device, cam, bounding_boxes, dataset_name, epoch, save_dir):
@@ -76,12 +146,14 @@ def evaluate_model(model, dataloader, device, cam, bounding_boxes, dataset_name,
     true_labels = []
     pred_labels = []
     pred_probs = []
-    ious = []
-    worst_iou_images = []
+    ious = [] # grad-cam code
+    worst_iou_images = []  # grad-cam code
     
     with torch.no_grad():
         for data in dataloader:
             inputs, labels = data[0].to(device), data[1].to(device)
+            img_paths = np.array(data[2]) # get image paths from custom image loader
+            print("img_paths: {}".format(img_paths))
             outputs = model(inputs)
             probs = torch.softmax(outputs, dim=1)[:, 1]  # Get probabilities for class 1
             preds = torch.argmax(outputs, dim=1)
@@ -89,14 +161,48 @@ def evaluate_model(model, dataloader, device, cam, bounding_boxes, dataset_name,
             true_labels.extend(labels.cpu().numpy())
             pred_labels.extend(preds.cpu().numpy())
             pred_probs.extend(probs.cpu().numpy())
+            
+            # Grad-CAM for "nodule" images
+            nodule_mask = labels == 1  # Only look at "nodule" class
+            if nodule_mask.sum() > 0:
+                nodule_inputs = inputs[nodule_mask]
+                with torch.set_grad_enabled(True): # enable grad only for gradcam calc
+                    model.train()
+                    nodule_inputs = nodule_inputs.requires_grad_()
+                    nodule_img_paths = [os.path.basename(img_path).split('.')[0] for img_path in img_paths[nodule_mask.cpu()]]
+                    print("nodule_img_paths: {}".format(nodule_img_paths))
+                    targets = [ClassifierOutputTarget(1)]  # Nodule class
+                    grayscale_cam = cam(input_tensor=nodule_inputs, targets=targets)
+                model.eval() #return to eval grad
+                # Convert Grad-CAM to binary mask
+                cam_mask = (torch.tensor(grayscale_cam) > 0.5).float()#.astype(float) #
+                print("bbox".format(bounding_boxes))
+                print("bbox[nodule_mask]".format(bounding_boxes[nodule_mask]))
+                print("bbox[nodule_img_paths]".format(bounding_boxes[nodule_img_paths]))
+                iou_batch = calculate_iou(cam_mask, bounding_boxes[nodule_mask])
+                ious.extend(iou_batch)
 
+                # Track worst IoU images
+                for i, iou in enumerate(iou_batch):
+                    if len(worst_iou_images) < 25:
+                        worst_iou_images.append((iou, nodule_inputs[i]))
+                    else:
+                        worst_iou_images.sort(key=lambda x: x[0])  # Sort by IoU ascending
+                        if iou < worst_iou_images[-1][0]:
+                            worst_iou_images[-1] = (iou, nodule_inputs[i])
+
+    # Save the 25 worst IoU images
+    save_worst_images(worst_iou_images, dataset_name, epoch, save_dir)
+    
     # Compute metrics for binary classification
     precision = precision_score(true_labels, pred_labels)
     recall = recall_score(true_labels, pred_labels)
     f1 = f1_score(true_labels, pred_labels)
     auc = roc_auc_score(true_labels, pred_probs)
+    avg_iou = np.mean(ious) if ious else 0.0
 
-    return precision, recall, f1, auc
+    # return precision, recall, f1, auc
+    return precision, recall, f1, auc, avg_iou
 
 def set_model_tuning(model, tuning_strategy):
     """Set the model's layers to be trainable or frozen based on the tuning strategy."""
@@ -195,18 +301,27 @@ def run_model_training(crop_size, process, train_set, model, model_name, bsz, lr
     ext2_path = os.path.join(data_root, ext_names[1], process, std_dir, "test")
     ext3_path = os.path.join(data_root, ext_names[2], process, std_dir, "test")
 
-    trainset = torchvision.datasets.ImageFolder(root=train_path, transform= v2.Compose(train_transform))
-    testset = torchvision.datasets.ImageFolder(root=test_path, transform=v2.Compose(test_transform))
-    ext1set = torchvision.datasets.ImageFolder(root=ext1_path, transform=v2.Compose(test_transform))
-    ext2set = torchvision.datasets.ImageFolder(root=ext2_path, transform=v2.Compose(test_transform))
-    ext3set = torchvision.datasets.ImageFolder(root=ext3_path, transform=v2.Compose(test_transform))
-    
-     # manually set the class index labels correctly
-    trainset.class_to_idx = {'nodule': 1, 'normal': 0}
-    testset.class_to_idx = {'nodule': 1, 'normal': 0}
-    ext1set.class_to_idx = {'nodule': 1, 'normal': 0}
-    ext2et.class_to_idx = {'nodule': 1, 'normal': 0}
-    ext3set.class_to_idx = {'nodule': 1, 'normal': 0}
+    # trainset = torchvision.datasets.ImageFolder(root=train_path, transform=v2.Compose(train_transform))
+    # testset = torchvision.datasets.ImageFolder(root=test_path, transform=v2.Compose(test_transform))
+    # ext1set = torchvision.datasets.ImageFolder(root=ext1_path, transform=v2.Compose(test_transform))
+    # ext2set = torchvision.datasets.ImageFolder(root=ext2_path, transform=v2.Compose(test_transform))
+    # ext3set = torchvision.datasets.ImageFolder(root=ext3_path, transform=v2.Compose(test_transform))
+    trainset = ImageFolderWithPaths(root=train_path, transform=v2.Compose(train_transform))
+    def remap_labels(label):
+        # mapping_dict = {'normal': 0, 'nodule': 1}
+        mapping_dict = {trainset.class_to_idx['nodule']: 1, trainset.class_to_idx['normal']: 0}
+        return mapping_dict[label]
+    trainset = ImageFolderWithPaths(root=train_path, transform=v2.Compose(train_transform), target_transform=remap_labels)
+    testset = ImageFolderWithPaths(root=test_path, transform=v2.Compose(test_transform), target_transform=remap_labels)
+    ext1set = ImageFolderWithPaths(root=ext1_path, transform=v2.Compose(test_transform), target_transform=remap_labels)
+    ext2set = ImageFolderWithPaths(root=ext2_path, transform=v2.Compose(test_transform), target_transform=remap_labels)
+    ext3set = ImageFolderWithPaths(root=ext3_path, transform=v2.Compose(test_transform), target_transform=remap_labels)
+
+    bbox_train = read_bounding_boxes(os.path.join(data_root,train_set,"{}_{}_bboxes.csv".format(train_set,"train")))
+    bbox_test = read_bounding_boxes(os.path.join(data_root,train_set,"{}_{}_bboxes.csv".format(train_set,"test")))
+    bbox_ext1 = read_bounding_boxes(os.path.join(data_root,ext_names[0],"{}_{}_bboxes.csv".format(ext_names[0],"test")))
+    bbox_ext2 = read_bounding_boxes(os.path.join(data_root,ext_names[1],"{}_{}_bboxes.csv".format(ext_names[1],"test")))
+    bbox_ext3 = read_bounding_boxes(os.path.join(data_root,ext_names[2],"{}_{}_bboxes.csv".format(ext_names[2],"test")))
     
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=bsz, shuffle=True, num_workers=num_workers, pin_memory=True)
     testloader = torch.utils.data.DataLoader(testset, batch_size=bsz, shuffle=False, num_workers=num_workers, pin_memory=True)
@@ -234,20 +349,28 @@ def run_model_training(crop_size, process, train_set, model, model_name, bsz, lr
         "test_precision": [],
         "test_recall": [],
         "test_f1": [],
+        "test_IoU": [],
         "ext1_auc": [],
         "ext1_precision": [],
         "ext1_recall": [],
         "ext1_f1": [],
+        "ext1_IoU": [],
         "ext2_auc": [],
         "ext2_precision": [],
         "ext2_recall": [],
+        "ext2_IoU": [],
         "ext2_f1": [],
         "ext3_auc": [],
         "ext3_precision": [],
         "ext3_recall": [],
         "ext3_f1": [],
+        "ext3_IoU": [],
 
     }
+
+    # Initialize Grad-CAM on the last convolutional layer
+    target_layers = [model.layer4[-1]]#.conv2]  # Adjust this based on your model architecture
+    cam = GradCAM(model=model, target_layers=target_layers)
 
     print(f"Training model: {model_name} for {num_epochs} epochs with seed: {torch.initial_seed()}")
 
@@ -271,8 +394,10 @@ def run_model_training(crop_size, process, train_set, model, model_name, bsz, lr
         metrics_dict["epoch"].append(epoch + 1)
         metrics_dict["train_loss"].append(avg_loss)
         # Evaluate on all test sets
-        for test_name, loader in zip(['test', 'ext1', 'ext2', 'ext3'], [testloader, ext1loader, ext2loader, ext3loader]):
-            precision, recall, f1, auc = evaluate_model(model, loader, device)
+        # for test_name, loader in zip(['test', 'ext1', 'ext2', 'ext3'], [testloader, ext1loader, ext2loader, ext3loader]):
+        #     precision, recall, f1, auc = evaluate_model(model, loader, device)
+        for test_name, loader, bounding_boxes in zip(['test', 'ext1', 'ext2', 'ext3'], [testloader, ext1loader, ext2loader, ext3loader], [bbox_test, bbox_ext1, bbox_ext2, bbox_ext3]):
+            precision, recall, f1, auc, avg_iou = evaluate_model(model, loader, device, cam, bounding_boxes, test_name, epoch, save_dir=log_dr)
             
             print(f'{test_name} - Epoch {epoch + 1}: Precision={precision:.3f}, Recall={recall:.3f}, F1={f1:.3f}, AUC={auc:.3f}')
 
@@ -281,6 +406,8 @@ def run_model_training(crop_size, process, train_set, model, model_name, bsz, lr
             writer.add_scalar(f'Recall/{test_name}', recall, epoch + 1)
             writer.add_scalar(f'F1/{test_name}', f1, epoch + 1)
             writer.add_scalar(f'AUC/{test_name}', auc, epoch + 1)
+            writer.add_scalar(f'IoU/{test_name}', avg_iou, epoch + 1)
+
 
             # Save the metrics for post-training analysis
 
@@ -288,7 +415,7 @@ def run_model_training(crop_size, process, train_set, model, model_name, bsz, lr
             metrics_dict[f'{test_name}_recall'].append(recall)
             metrics_dict[f'{test_name}_f1'].append(f1)
             metrics_dict[f'{test_name}_auc'].append(auc)
-
+            metrics_dict[f'{test_name}_IoU'].append(avg_iou)
         if avg_loss < best_loss:
             best_loss = avg_loss
             epochs_no_improve = 0
@@ -450,5 +577,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-

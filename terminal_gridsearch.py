@@ -414,7 +414,7 @@ def grid_search(crop_size, process, train_set, model, model_name, patience, para
     print(f"Best hyperparameters: {best_params}, AUC: {best_score:.3f}")
     return best_params
 
-def validate_best_params(crop_size, process, train_set, model, model_name, best_params, patience, seeds, tuning_strategy, log_dr, num_epochs=10, data_root="/content/", single):
+def validate_best_params(crop_size, process, train_set, model, model_name, best_params, patience, seeds, tuning_strategy, log_dr, num_epochs=10, data_root="/content/", single=False):
     """Validate the best hyperparameters across multiple seeds."""
     bsz = best_params['bsz']
     lr = best_params['lr']

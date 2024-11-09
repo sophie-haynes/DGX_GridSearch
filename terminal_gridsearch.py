@@ -489,15 +489,15 @@ def initialize_model(model_type):
         model.load_state_dict(new_state_dict)
     elif model_type == "final_base":
         weights = torch.load("/home/local/data/sophie/imagenet/output/base/continued/model_150.pth", map_location='cpu', weights_only=False)
-        model = get_model("resnet50",weights=None,num_classes=num_classes)
+        model = get_model("resnet50",weights=None,num_classes=1000)
         model.load_state_dict(weights["model"])
     elif model_type == "final_grey":
         weights = torch.load("/home/local/data/sophie/imagenet/output/grey/continued/model_151.pth", map_location='cpu', weights_only=False)
-        model = get_model("resnet50",weights=None,num_classes=num_classes)
+        model = get_model("resnet50",weights=None,num_classes=1000)
         model.load_state_dict(weights["model"])
     elif model_type == "final_single":
         weights = torch.load("/home/local/data/sophie/imagenet/output/single/model_99.pth", map_location='cpu', weights_only=False)
-        model = get_model("resnet50",weights=None,num_classes=num_classes)
+        model = get_model("resnet50",weights=None,num_classes=1000)
         model.load_state_dict(weights["model"])
         model = convert_to_single_channel(model)
 

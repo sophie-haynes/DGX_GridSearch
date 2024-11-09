@@ -1,4 +1,4 @@
-# python terminal_gridsearch.py --process 'crop' --train_set 'cxr14' --model_type 'grey' --tuning_strategy 'final_layer' --epochs 30 --patience 5 --learning_rates 0.001 0.01 0.01 --batch_sizes 16 --momentums 0.9 0.95 0.99 --data_root '/home/local/data/sophie/' --num_workers 4 --log_dr '/home/local/data/sophie/runs/128_runs/' --crop_size 128 
+# python terminal_gridsearch.py --process 'crop' --train_set 'cxr14' --model_type 'grey' --tuning_strategy 'final_layer' --epochs 30 --patience 5 --learning_rates 0.001 0.01 0.01 --batch_sizes 16 --momentums 0.9 0.95 0.99 --data_root '/home/local/data/sophie/' --num_workers 4 --log_dr '/home/local/data/sophie/runs/128_runs/' --crop_size 128
 import copy
 import itertools
 import torch
@@ -6,12 +6,20 @@ import torchvision
 from torchvision.transforms import v2
 import random
 import numpy as np
-from sklearn.metrics import precision_score, recall_score, f1_score, roc_auc_score
+# from sklearn.metrics import precision_score, recall_score, f1_score, roc_auc_score
+# core metrics
+# BinaryAUROC: summarise overall performance
+# BinaryF1Score:
+from torcheval.metrics import BinaryAUROC, BinaryF1Score, BinaryPrecision, BinaryRecall
+# medical metrics - use torchmetrics package for specific calculations
+# BinarySpecificityAtSensitivity: tune to 98% sensitivity to see performance of negatives when nearly all positives are detected
+# BinaryFBetaScore: F-Score but with higher importance weighting to class (beta>1 = higher recall ~ identify all positives)
+# from torchmetrics.classification import BinarySpecificityAtSensitivity, BinaryFBetaScore
+# from torchmetrics.classification import BinaryPrecisionAtFixedRecall as BinaryPrecisionAtSensitivity # rename for clearer understanding
 from torch.utils.tensorboard import SummaryWriter
 import os
 import datetime
 import argparse
-
 
 
 crop_dict = {
@@ -96,6 +104,30 @@ def evaluate_model(model, dataloader, device):
 
     return precision, recall, f1, auc
 
+def evaluate_gpu_metrics(model, dataloader, device):
+    model.eval()
+    auroc = BinaryAUROC()
+    f1 = BinaryF1Score()
+    prec =  BinaryPrecision()
+    rec = BinaryRecall()
+
+    # prec98 = BinaryPrecisionAtSensitivity(min_recall=0.98)
+    # spec98 = BinarySpecificityAtSensitivity(min_sensitivity=0.98)
+    # fbeta = BinaryFBetaScore(beta=2.0)
+
+    with torch.no_grad():
+        for data in dataloader:
+            inputs, labels = data[0].to(device), data[1].to(device)
+            outputs = model(inputs)
+            auroc.update(output,labels)
+            f1.update(output,labels)
+            prec.update(output,labels)
+            rec.update(output,labels)
+
+
+    return prec.compute().item(), rec.compute().item(), f1.compute().item(), auroc.compute().item()
+
+
 def set_model_tuning(model, tuning_strategy):
     """Set the model's layers to be trainable or frozen based on the tuning strategy."""
     if tuning_strategy == "final_layer":
@@ -161,7 +193,7 @@ def run_model_training(crop_size, process, train_set, model, model_name, bsz, lr
         raise ValueError("Invalid train_set value. Must be one of 'cxr14', 'padchest', 'openi', or 'jsrt'.")
     else:
         ext_names.remove(train_set)
-    
+
     std_dir = "std_1024"
     if process == "crop":
         mean = crop_dict[train_set][0]
@@ -176,7 +208,7 @@ def run_model_training(crop_size, process, train_set, model, model_name, bsz, lr
     else:
         raise ValueError("Invalid process value. Must be 'crop', 'arch_seg', or 'lung_seg'.")
 
-    
+
     normalise = v2.Normalize(mean=mean, std=std)
 
     # Set the tuning strategy (which layers to freeze/unfreeze)
@@ -198,7 +230,7 @@ def run_model_training(crop_size, process, train_set, model, model_name, bsz, lr
     ext1set = torchvision.datasets.ImageFolder(root=ext1_path, transform=v2.Compose(test_transform))
     ext2set = torchvision.datasets.ImageFolder(root=ext2_path, transform=v2.Compose(test_transform))
     ext3set = torchvision.datasets.ImageFolder(root=ext3_path, transform=v2.Compose(test_transform))
-    
+
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=bsz, shuffle=True, num_workers=num_workers, pin_memory=True)
     testloader = torch.utils.data.DataLoader(testset, batch_size=bsz, shuffle=False, num_workers=num_workers, pin_memory=True)
     ext1loader = torch.utils.data.DataLoader(ext1set, batch_size=bsz, shuffle=False, num_workers=num_workers, pin_memory=True)
@@ -263,8 +295,9 @@ def run_model_training(crop_size, process, train_set, model, model_name, bsz, lr
         metrics_dict["train_loss"].append(avg_loss)
         # Evaluate on all test sets
         for test_name, loader in zip(['test', 'ext1', 'ext2', 'ext3'], [testloader, ext1loader, ext2loader, ext3loader]):
-            precision, recall, f1, auc = evaluate_model(model, loader, device)
-            
+            # precision, recall, f1, auc = evaluate_model(model, loader, device)
+            precision, recall, f1, auc = evaluate_gpu_metrics(model, loader, device)
+
             print(f'{test_name} - Epoch {epoch + 1}: Precision={precision:.3f}, Recall={recall:.3f}, F1={f1:.3f}, AUC={auc:.3f}')
 
             # Log these metrics to TensorBoard
@@ -401,7 +434,7 @@ def initialize_model(model_type):
             new_state_dict[k] = v
         model.load_state_dict(new_state_dict)
     num_classes = 2
-    
+
     num_ftrs = model.fc.in_features
     model.fc = torch.nn.Linear(num_ftrs, num_classes)
     return model
@@ -409,7 +442,7 @@ def initialize_model(model_type):
 def main():
     args = parse_args()
     #stop crazy CPU core use
-    torch.set_num_threads(args.num_workers) 
+    torch.set_num_threads(args.num_workers)
     # Initialize the model based on the type ('base' or 'grey')
     model = initialize_model(args.model_type)
 
@@ -441,5 +474,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-

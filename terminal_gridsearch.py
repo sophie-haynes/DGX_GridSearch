@@ -404,7 +404,7 @@ def run_model_training(crop_size, process, train_set, model, model_name, bsz, lr
     torch.save(final_model.state_dict(), os.path.join(out_model_path,out_model_name))
     return metrics_dict
 
-def grid_search(crop_size, process, train_set, model, model_name, patience, param_grid, seed, tuning_strategy, num_epochs=10, data_root="/content/",num_workers=8,log_dr="runs",single=False):
+def grid_search(crop_size, process, train_set, model, model_name, patience, param_grid, tuning_strategy, num_epochs=10, data_root="/content/",num_workers=8,log_dr="runs",single=False):
     """Perform a grid search to identify the best hyperparameter configuration."""
     best_params = None
     best_score = float('-inf')

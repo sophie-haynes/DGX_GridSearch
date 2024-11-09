@@ -502,8 +502,8 @@ def initialize_model(model_type):
     elif model_type == "final_single":
         weights = torch.load("/home/local/data/sophie/imagenet/output/single/model_99.pth", map_location='cpu', weights_only=False)
         model = get_model("resnet50",weights=None,num_classes=1000)
-        model.load_state_dict(weights["model"])
         model = convert_to_single_channel(model)
+        model.load_state_dict(weights["model"])
 
 
     # ensure results are consistent by disabling benchmarking

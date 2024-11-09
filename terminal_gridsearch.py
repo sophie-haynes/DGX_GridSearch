@@ -2,6 +2,7 @@
 import copy
 import itertools
 import torch
+from torch.backends.cudnn import benchmark, deterministic
 import torchvision
 from torchvision.transforms import v2
 import random
@@ -16,10 +17,12 @@ from torcheval.metrics import BinaryAUROC, BinaryF1Score, BinaryPrecision, Binar
 # BinaryFBetaScore: F-Score but with higher importance weighting to class (beta>1 = higher recall ~ identify all positives)
 # from torchmetrics.classification import BinarySpecificityAtSensitivity, BinaryFBetaScore
 # from torchmetrics.classification import BinaryPrecisionAtFixedRecall as BinaryPrecisionAtSensitivity # rename for clearer understanding
+from torchvision.models import get_model
 from torch.utils.tensorboard import SummaryWriter
 import os
 import datetime
 import argparse
+
 
 
 crop_dict = {
@@ -45,7 +48,11 @@ lung_seg_dict = {
     'jsrt': [[66.5978], [72.6493]],
     'padchest': [[60.5482], [66.5276]],
 }
-def get_cxr_train_transforms(crop_size,normalise):
+def get_cxr_train_transforms(crop_size,normalise,single=False):
+    if single:
+        grey = v2.Grayscale(num_output_channels=1)
+    else:
+        grey = v2.Grayscale(num_output_channels=3)
     cxr_transform_list = [
         v2.ToImage(),
         v2.RandomRotation(15),
@@ -54,6 +61,7 @@ def get_cxr_train_transforms(crop_size,normalise):
             # reduced saturation and contrast - prevent too much info loss + removed hue
             v2.ColorJitter(0.4, 0.2, 0.2,0)
         ], p=0.8),
+        grey,
         # moved after transforms to preserve resolution, reduced scale to increase likelihood of indicator presence
         v2.RandomResizedCrop(size=crop_size, scale=(0.6, 1.),antialias=True),
         # required for normalisation
@@ -62,9 +70,14 @@ def get_cxr_train_transforms(crop_size,normalise):
     ]
     return cxr_transform_list
 
-def get_cxr_eval_transforms(crop_size,normalise):
+def get_cxr_eval_transforms(crop_size,normalise, single=False):
+    if single:
+        grey = v2.Grayscale(num_output_channels=1)
+    else:
+        grey = v2.Grayscale(num_output_channels=3)
     cxr_transform_list = [
         v2.ToImage(),
+        grey,
         v2.Resize(size=crop_size,antialias=True),
         v2.ToDtype(torch.float32, scale=False),
         normalise
@@ -166,8 +179,49 @@ def set_model_tuning(model, tuning_strategy):
     else:
         raise ValueError("Invalid tuning strategy. Choose from 'final_layer', 'half_network', 'first_layer_freeze' or 'full_network'.")
 
+def convert_to_single_channel(model):
+    """
+    Modifies the first convolutional layer of a given model to accept single-channel input.
 
-def run_model_training(crop_size, process, train_set, model, model_name, bsz, lr, momentum, patience, tuning_strategy, log_dr,data_root="/content/", num_epochs=10,num_workers=8):
+    Args:
+        model (torch.nn.Module): The model to be modified.
+
+    Returns:
+        torch.nn.Module: The modified model with a single-channel input.
+    """
+    # Identify the first convolutional layer
+    conv1 = None
+    for name, layer in model.named_modules():
+        if isinstance(layer, torch.nn.Conv2d):
+            conv1 = layer
+            conv1_name = name
+            break
+
+    if conv1 is None:
+        raise ValueError("The model does not have a Conv2D layer.")
+
+    # Create a new convolutional layer with the same parameters except for the input channels
+    new_conv1 = torch.nn.Conv2d(
+        in_channels=1,  # Change input channels to 1
+        out_channels=conv1.out_channels,
+        kernel_size=conv1.kernel_size,
+        stride=conv1.stride,
+        padding=conv1.padding,
+        bias=conv1.bias is not None
+    )
+
+    # Replace the old conv1 layer with the new one
+    def recursive_setattr(model, attr, value):
+        attr_list = attr.split('.')
+        for attr_name in attr_list[:-1]:
+            model = getattr(model, attr_name)
+        setattr(model, attr_list[-1], value)
+
+    recursive_setattr(model, conv1_name, new_conv1)
+
+    return model
+
+def run_model_training(crop_size, process, train_set, model, model_name, bsz, lr, momentum, patience, tuning_strategy, log_dr,data_root="/content/", num_epochs=10,num_workers=8, single):
     """
     Train the model and log results to TensorBoard, organizing logs by tuning strategy, model, and hyperparameters.
     """
@@ -215,8 +269,8 @@ def run_model_training(crop_size, process, train_set, model, model_name, bsz, lr
     set_model_tuning(model, tuning_strategy)
 
     # Data transformations
-    train_transform = get_cxr_train_transforms(crop_size, normalise)
-    test_transform = get_cxr_eval_transforms(crop_size, normalise)
+    train_transform = get_cxr_train_transforms(crop_size, normalise, single)
+    test_transform = get_cxr_eval_transforms(crop_size, normalise, single)
 
     # Load datasets
     train_path = os.path.join(data_root, train_set, process, std_dir, "train")
@@ -326,7 +380,7 @@ def run_model_training(crop_size, process, train_set, model, model_name, bsz, lr
     writer.close()
     return metrics_dict
 
-def grid_search(crop_size, process, train_set, model, model_name, patience, param_grid, seed, tuning_strategy, num_epochs=10, data_root="/content/",num_workers=8,log_dr="runs"):
+def grid_search(crop_size, process, train_set, model, model_name, patience, param_grid, seed, tuning_strategy, num_epochs=10, data_root="/content/",num_workers=8,log_dr="runs",single=False):
     """Perform a grid search to identify the best hyperparameter configuration."""
     best_params = None
     best_score = float('-inf')
@@ -345,7 +399,7 @@ def grid_search(crop_size, process, train_set, model, model_name, patience, para
 
         model_copy = copy.deepcopy(model)
 
-        metrics = run_model_training(crop_size, process, train_set, model_copy, model_name, bsz, lr, momentum, patience, tuning_strategy, log_dr, data_root, num_epochs,num_workers)
+        metrics = run_model_training(crop_size, process, train_set, model_copy, model_name, bsz, lr, momentum, patience, tuning_strategy, log_dr, data_root, num_epochs, num_workers, single)
 
         avg_auc = (metrics['test_auc'][-1] + metrics['ext1_auc'][-1] + metrics['ext2_auc'][-1] + metrics['ext3_auc'][-1]) / 4
 
@@ -360,7 +414,7 @@ def grid_search(crop_size, process, train_set, model, model_name, patience, para
     print(f"Best hyperparameters: {best_params}, AUC: {best_score:.3f}")
     return best_params
 
-def validate_best_params(crop_size, process, train_set, model, model_name, best_params, patience, seeds, tuning_strategy, log_dr, num_epochs=10, data_root="/content/"):
+def validate_best_params(crop_size, process, train_set, model, model_name, best_params, patience, seeds, tuning_strategy, log_dr, num_epochs=10, data_root="/content/", single):
     """Validate the best hyperparameters across multiple seeds."""
     bsz = best_params['bsz']
     lr = best_params['lr']
@@ -372,7 +426,7 @@ def validate_best_params(crop_size, process, train_set, model, model_name, best_
         print(f"Validation with seed {seed} (Run {i+1}/{len(seeds)}) with best params: {best_params}")
         set_seed(seed)
 
-        metrics = run_model_training(crop_size, process, train_set, model, model_name, bsz, lr, momentum, patience, tuning_strategy, log_dr, data_root, num_epochs)
+        metrics = run_model_training(crop_size, process, train_set, model, model_name, bsz, lr, momentum, patience, tuning_strategy, log_dr, data_root, num_epochs, single)
         results['test_auc'].append(metrics['test_auc'])
         results['ext1_auc'].append(metrics['ext1_auc'])
         results['ext2_auc'].append(metrics['ext2_auc'])
@@ -390,7 +444,7 @@ def parse_args():
     parser.add_argument("--crop_size", type=int, default=224, help="Crop size for image preprocessing")
     parser.add_argument("--process", type=str, required=True, choices=["crop", "arch_seg", "lung_seg"], help="Process type")
     parser.add_argument("--train_set", type=str, required=True, help="Training dataset name (e.g., 'cxr14')")
-    parser.add_argument("--model_type", type=str, required=True, choices=["base", "grey","grey89"], help="Model type (base or grey)")
+    parser.add_argument("--model_type", type=str, required=True, choices=["base", "grey","grey89", "final_base", "final_grey", "final_single"], help="Model type (base or grey)")
     parser.add_argument("--tuning_strategy", type=str, required=True, choices=["final_layer", "half_network", "first_layer_freeze","full_network"], help="Tuning strategy")
     parser.add_argument("--epochs", type=int, default=10, help="Number of epochs for training")
     parser.add_argument("--patience", type=int, default=5, help="Patience for early stopping")
@@ -413,7 +467,7 @@ def parse_args():
 
 
 def initialize_model(model_type):
-
+    num_classes = 2
     """Initialize and return the model based on the type specified."""
     if model_type == "base":
         model = torchvision.models.resnet50(pretrained=True)
@@ -433,7 +487,25 @@ def initialize_model(model_type):
             k = k.replace("module.", "")
             new_state_dict[k] = v
         model.load_state_dict(new_state_dict)
-    num_classes = 2
+    elif model_type == "final_base":
+        weights = torch.load("/home/local/data/sophie/imagenet/output/base/continued/model_150.pth", map_location='cpu', weights_only=False)
+        model = get_model("resnet50",weights=None,num_classes=num_classes)
+        model.load_state_dict(weights["model"])
+    elif model_type == "final_grey":
+        weights = torch.load("/home/local/data/sophie/imagenet/output/grey/continued/model_151.pth", map_location='cpu', weights_only=False)
+        model = get_model("resnet50",weights=None,num_classes=num_classes)
+        model.load_state_dict(weights["model"])
+    elif model_type == "final_single":
+        weights = torch.load("/home/local/data/sophie/imagenet/output/single/model_99.pth", map_location='cpu', weights_only=False)
+        model = get_model("resnet50",weights=None,num_classes=num_classes)
+        model.load_state_dict(weights["model"])
+        model = convert_to_single_channel(model)
+
+
+    # ensure results are consistent by disabling benchmarking
+    benchmark = False
+    deterministic = True
+
 
     num_ftrs = model.fc.in_features
     model.fc = torch.nn.Linear(num_ftrs, num_classes)
@@ -467,7 +539,8 @@ def main():
         num_epochs=args.epochs,
         data_root=args.data_root,
         num_workers=args.num_workers,
-        log_dr=args.log_dr
+        log_dr=args.log_dr,
+        single=True if args.model_type == "final_single" else False
     )
 
     print(f"Best parameters found: {best_params}")

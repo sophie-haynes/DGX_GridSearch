@@ -467,7 +467,8 @@ def parse_args():
 
 
 def initialize_model(model_type):
-    num_classes = 2
+    # num_classes = 2
+    num_classes = 1
     """Initialize and return the model based on the type specified."""
     if model_type == "base":
         model = torchvision.models.resnet50(pretrained=True)

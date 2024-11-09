@@ -416,7 +416,7 @@ def grid_search(crop_size, process, train_set, model, model_name, patience, para
 
     for idx, param_comb in enumerate(param_combinations):
         params = dict(zip(param_names, param_comb))
-        bsz, lr, momentum = params['bsz'], params['lr'], params['momentum']
+        bsz, lr, momentum, seed = params['bsz'], params['lr'], params['momentum'], params['seed']
 
         print(f"Grid search iteration {idx + 1}/{len(param_combinations)} with params: {params} on model: {model_name}")
         set_seed(seed)
@@ -485,7 +485,7 @@ def parse_args():
     parser.add_argument("--log_dr", type=str, help="Tensorboard logging folder")
 
     # Optional seed
-    parser.add_argument("--seed", type=int, default=42, help="Random seed")
+    parser.add_argument("--seed", nargs='+', type=int, default=42, help="Random seed - supports list")
 
     return parser.parse_args()
 
@@ -554,7 +554,8 @@ def main():
     param_grid = {
         'bsz': args.batch_sizes,
         'lr': args.learning_rates,
-        'momentum': args.momentums
+        'momentum': args.momentums,
+        'seed': args.seed
     }
 
     # Run the grid search
@@ -566,7 +567,6 @@ def main():
         model_name=args.model_type,
         patience=args.patience,
         param_grid=param_grid,
-        seed=args.seed,
         tuning_strategy=args.tuning_strategy,
         num_epochs=args.epochs,
         data_root=args.data_root,

@@ -283,11 +283,15 @@ def run_model_training(crop_size, process, train_set, model, model_name, bsz, lr
     ext2_path = os.path.join(data_root, ext_names[1], process, std_dir, "test")
     ext3_path = os.path.join(data_root, ext_names[2], process, std_dir, "test")
 
-    trainset = torchvision.datasets.ImageFolder(root=train_path, transform= v2.Compose(train_transform))
-    testset = torchvision.datasets.ImageFolder(root=test_path, transform=v2.Compose(test_transform))
-    ext1set = torchvision.datasets.ImageFolder(root=ext1_path, transform=v2.Compose(test_transform))
-    ext2set = torchvision.datasets.ImageFolder(root=ext2_path, transform=v2.Compose(test_transform))
-    ext3set = torchvision.datasets.ImageFolder(root=ext3_path, transform=v2.Compose(test_transform))
+    def remap_labels(label):
+        # mapping_dict = {'normal': 0, 'nodule': 1}
+        mapping_dict = {trainset.class_to_idx['nodule']: 1, trainset.class_to_idx['normal']: 0}
+        return mapping_dict[label]
+    trainset = torchvision.datasets.ImageFolder(root=train_path, transform= v2.Compose(train_transform), target_transform=remap_labels)
+    testset = torchvision.datasets.ImageFolder(root=test_path, transform=v2.Compose(test_transform), target_transform=remap_labels)
+    ext1set = torchvision.datasets.ImageFolder(root=ext1_path, transform=v2.Compose(test_transform), target_transform=remap_labels)
+    ext2set = torchvision.datasets.ImageFolder(root=ext2_path, transform=v2.Compose(test_transform), target_transform=remap_labels)
+    ext3set = torchvision.datasets.ImageFolder(root=ext3_path, transform=v2.Compose(test_transform), target_transform=remap_labels)
 
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=bsz, shuffle=True, num_workers=num_workers, pin_memory=True)
     testloader = torch.utils.data.DataLoader(testset, batch_size=bsz, shuffle=False, num_workers=num_workers, pin_memory=True)

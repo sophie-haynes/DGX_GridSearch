@@ -394,7 +394,7 @@ def run_model_training(crop_size, process, train_set, model, model_name, bsz, lr
     }
     out_model_path = os.path.join(
         "/home/local/data/sophie/transfer",
-        model_type,
+        model_name,
         tuning_strategy,  # Directory for the tuning strategy
         model_name,  # Subdirectory for the model type
     )

@@ -132,10 +132,10 @@ def evaluate_gpu_metrics(model, dataloader, device):
         for data in dataloader:
             inputs, labels = data[0].to(device), data[1].to(device)
             outputs = model(inputs)
-            auroc.update(output,labels)
-            f1.update(output,labels)
-            prec.update(output,labels)
-            rec.update(output,labels)
+            auroc.update(outputs,labels)
+            f1.update(outputs,labels)
+            prec.update(outputs,labels)
+            rec.update(outputs,labels)
 
 
     return prec.compute().item(), rec.compute().item(), f1.compute().item(), auroc.compute().item()

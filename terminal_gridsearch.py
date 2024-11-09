@@ -386,6 +386,22 @@ def run_model_training(crop_size, process, train_set, model, model_name, bsz, lr
             break
 
     writer.close()
+
+    final_model = {
+        "model": model.state_dict(),
+        "optimizer": optimizer.state_dict(),
+        "epoch": epoch,
+    }
+    out_model_path = os.path.join(
+        "/home/local/data/sophie/transfer",
+        model_type,
+        tuning_strategy,  # Directory for the tuning strategy
+        model_name,  # Subdirectory for the model type
+    )
+    if not os.path.exists(out_model_path):
+        os.makedirs(out_model_path)
+    out_model_name = f"model_lr_{lr}_bsz_{bsz}_mom_{momentum}.pth"
+    torch.save(final_model.state_dict(), os.path.join(out_model_path,out_model_name))
     return metrics_dict
 
 def grid_search(crop_size, process, train_set, model, model_name, patience, param_grid, seed, tuning_strategy, num_epochs=10, data_root="/content/",num_workers=8,log_dr="runs",single=False):

@@ -225,7 +225,7 @@ def convert_to_single_channel(model):
 
     return model
 
-def run_model_training(crop_size, process, train_set, model, model_name, bsz, lr, momentum, patience, tuning_strategy, log_dr,data_root="/content/", num_epochs=10,num_workers=8, single=False):
+def run_model_training(crop_size, process, train_set, model, model_name, bsz, lr, momentum, patience, tuning_strategy, log_dr,data_root="/content/", num_epochs=10,num_workers=8, single=False, seed=None):
     """
     Train the model and log results to TensorBoard, organizing logs by tuning strategy, model, and hyperparameters.
     """
@@ -400,7 +400,7 @@ def run_model_training(crop_size, process, train_set, model, model_name, bsz, lr
     )
     if not os.path.exists(out_model_path):
         os.makedirs(out_model_path)
-    out_model_name = f"model_lr_{lr}_bsz_{bsz}_mom_{momentum}.pth"
+    out_model_name = f"model_lr_{lr}_bsz_{bsz}_mom_{momentum}_seed_{seed}.pth"
     torch.save(final_model.state_dict(), os.path.join(out_model_path,out_model_name))
     return metrics_dict
 
@@ -423,7 +423,7 @@ def grid_search(crop_size, process, train_set, model, model_name, patience, para
 
         model_copy = copy.deepcopy(model)
 
-        metrics = run_model_training(crop_size, process, train_set, model_copy, model_name, bsz, lr, momentum, patience, tuning_strategy, log_dr, data_root, num_epochs, num_workers, single)
+        metrics = run_model_training(crop_size, process, train_set, model_copy, model_name, bsz, lr, momentum, patience, tuning_strategy, log_dr, data_root, num_epochs, num_workers, single,seed=seed)
 
         avg_auc = (metrics['test_auc'][-1] + metrics['ext1_auc'][-1] + metrics['ext2_auc'][-1] + metrics['ext3_auc'][-1]) / 4
 
@@ -438,27 +438,27 @@ def grid_search(crop_size, process, train_set, model, model_name, patience, para
     print(f"Best hyperparameters: {best_params}, AUC: {best_score:.3f}")
     return best_params
 
-def validate_best_params(crop_size, process, train_set, model, model_name, best_params, patience, seeds, tuning_strategy, log_dr, num_epochs=10, data_root="/content/", single=False):
-    """Validate the best hyperparameters across multiple seeds."""
-    bsz = best_params['bsz']
-    lr = best_params['lr']
-    momentum = best_params['momentum']
-
-    results = {'test_auc': [], 'ext1_auc': [], 'ext2_auc': [], 'ext3_auc': []}
-
-    for i, seed in enumerate(seeds):
-        print(f"Validation with seed {seed} (Run {i+1}/{len(seeds)}) with best params: {best_params}")
-        set_seed(seed)
-
-        metrics = run_model_training(crop_size, process, train_set, model, model_name, bsz, lr, momentum, patience, tuning_strategy, log_dr, data_root, num_epochs, single)
-        results['test_auc'].append(metrics['test_auc'])
-        results['ext1_auc'].append(metrics['ext1_auc'])
-        results['ext2_auc'].append(metrics['ext2_auc'])
-        results['ext3_auc'].append(metrics['ext3_auc'])
-
-    avg_results = {key: np.mean(values) for key, values in results.items()}
-    print(f"Average performance across seeds: {avg_results}")
-    return avg_results
+# def validate_best_params(crop_size, process, train_set, model, model_name, best_params, patience, seeds, tuning_strategy, log_dr, num_epochs=10, data_root="/content/", single=False):
+#     """Validate the best hyperparameters across multiple seeds."""
+#     bsz = best_params['bsz']
+#     lr = best_params['lr']
+#     momentum = best_params['momentum']
+#
+#     results = {'test_auc': [], 'ext1_auc': [], 'ext2_auc': [], 'ext3_auc': []}
+#
+#     for i, seed in enumerate(seeds):
+#         print(f"Validation with seed {seed} (Run {i+1}/{len(seeds)}) with best params: {best_params}")
+#         set_seed(seed)
+#
+#         metrics = run_model_training(crop_size, process, train_set, model, model_name, bsz, lr, momentum, patience, tuning_strategy, log_dr, data_root, num_epochs, single)
+#         results['test_auc'].append(metrics['test_auc'])
+#         results['ext1_auc'].append(metrics['ext1_auc'])
+#         results['ext2_auc'].append(metrics['ext2_auc'])
+#         results['ext3_auc'].append(metrics['ext3_auc'])
+#
+#     avg_results = {key: np.mean(values) for key, values in results.items()}
+#     print(f"Average performance across seeds: {avg_results}")
+#     return avg_results
 
 
 def parse_args():

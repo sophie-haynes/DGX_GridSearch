@@ -132,10 +132,14 @@ def evaluate_gpu_metrics(model, dataloader, device):
         for data in dataloader:
             inputs, labels = data[0].to(device), data[1].to(device)
             outputs = model(inputs)
-            auroc.update(outputs,labels)
-            f1.update(outputs,labels)
-            prec.update(outputs,labels)
-            rec.update(outputs,labels)
+            auroc.update(torch.softmax(outputs, dim=1)[:, 1],labels)
+            f1.update(torch.softmax(outputs, dim=1)[:, 1],labels)
+            prec.update(torch.softmax(outputs, dim=1)[:, 1],labels)
+            rec.update(torch.softmax(outputs, dim=1)[:, 1],labels)
+            # auroc.update(outputs,labels)
+            # f1.update(outputs,labels)
+            # prec.update(outputs,labels)
+            # rec.update(outputs,labels)
 
 
     return prec.compute().item(), rec.compute().item(), f1.compute().item(), auroc.compute().item()

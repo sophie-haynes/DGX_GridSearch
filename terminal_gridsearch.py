@@ -401,7 +401,7 @@ def run_model_training(crop_size, process, train_set, model, model_name, bsz, lr
     if not os.path.exists(out_model_path):
         os.makedirs(out_model_path)
     out_model_name = f"model_lr_{lr}_bsz_{bsz}_mom_{momentum}_seed_{seed}.pth"
-    torch.save(final_model.state_dict(), os.path.join(out_model_path,out_model_name))
+    torch.save(final_model, os.path.join(out_model_path,out_model_name))
     return metrics_dict
 
 def grid_search(crop_size, process, train_set, model, model_name, patience, param_grid, tuning_strategy, num_epochs=10, data_root="/content/",num_workers=8,log_dr="runs",single=False):

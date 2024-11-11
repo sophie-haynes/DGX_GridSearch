@@ -229,6 +229,8 @@ def run_model_training(crop_size, process, train_set, model, model_name, bsz, lr
     """
     Train the model and log results to TensorBoard, organizing logs by tuning strategy, model, and hyperparameters.
     """
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    
     class_weighting = torch.Tensor([1.0,pos_class_weight]).to(device)
 
     # Create a log directory based on the tuning strategy, model name, and hyperparameters
@@ -306,7 +308,6 @@ def run_model_training(crop_size, process, train_set, model, model_name, bsz, lr
     criterion = torch.nn.CrossEntropyLoss(weight=class_weighting)
     optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=momentum)
 
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     model.to(device)
 
     best_loss = float('inf')

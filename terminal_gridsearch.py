@@ -229,7 +229,7 @@ def run_model_training(crop_size, process, train_set, model, model_name, bsz, lr
     """
     Train the model and log results to TensorBoard, organizing logs by tuning strategy, model, and hyperparameters.
     """
-    class_weighting = [1.0,pos_class_weight]
+    class_weighting = torch.Tensor([1.0,pos_class_weight])
 
     # Create a log directory based on the tuning strategy, model name, and hyperparameters
     log_dir = os.path.join(

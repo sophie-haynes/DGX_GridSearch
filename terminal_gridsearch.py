@@ -240,7 +240,7 @@ def run_model_training(crop_size, process, train_set, model, model_name, bsz, lr
         process,
         tuning_strategy,  # Directory for the tuning strategy
         model_name,  # Subdirectory for the model type
-        f"lr_{lr}_bsz_{bsz}_mom_{momentum}_seed_{seed}_pos-weight_{pos_class_weight}"  # Subdirectory for hyperparameter configuration
+        f"lr_{lr}_bsz_{bsz}_mom_{momentum}_seed_{seed}_posWeight_{pos_class_weight}"  # Subdirectory for hyperparameter configuration
     )
 
     # Ensure the directory structure is created properly

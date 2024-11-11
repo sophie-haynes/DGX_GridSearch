@@ -230,7 +230,7 @@ def run_model_training(crop_size, process, train_set, model, model_name, bsz, lr
     Train the model and log results to TensorBoard, organizing logs by tuning strategy, model, and hyperparameters.
     """
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    
+
     class_weighting = torch.Tensor([1.0,pos_class_weight]).to(device)
 
     # Create a log directory based on the tuning strategy, model name, and hyperparameters
@@ -534,6 +534,11 @@ def initialize_model(model_type):
         model.load_state_dict(weights["model"])
     elif model_type == "final_single":
         weights = torch.load("/home/local/data/sophie/imagenet/output/single/model_99.pth", map_location='cpu', weights_only=False)
+        model = get_model("resnet50",weights=None,num_classes=1000)
+        model = convert_to_single_channel(model)
+        model.load_state_dict(weights["model"])
+    elif model_type == "final_single_last":
+        weights = torch.load("/home/local/data/sophie/imagenet/output/single/model_120.pth", map_location='cpu', weights_only=False)
         model = get_model("resnet50",weights=None,num_classes=1000)
         model = convert_to_single_channel(model)
         model.load_state_dict(weights["model"])

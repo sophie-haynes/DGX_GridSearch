@@ -225,10 +225,11 @@ def convert_to_single_channel(model):
 
     return model
 
-def run_model_training(crop_size, process, train_set, model, model_name, bsz, lr, momentum, patience, tuning_strategy, log_dr,data_root="/content/", num_epochs=10,num_workers=8, single=False, seed=None):
+def run_model_training(crop_size, process, train_set, model, model_name, bsz, lr, momentum, patience, tuning_strategy, log_dr,data_root="/content/", num_epochs=10,num_workers=8, single=False, seed=None,pos_class_weights=1.0):
     """
     Train the model and log results to TensorBoard, organizing logs by tuning strategy, model, and hyperparameters.
     """
+    class_weighting = [1.0,pos_class_weights]
 
     # Create a log directory based on the tuning strategy, model name, and hyperparameters
     log_dir = os.path.join(
@@ -302,7 +303,7 @@ def run_model_training(crop_size, process, train_set, model, model_name, bsz, lr
 
 
     # Define loss function and optimizer
-    criterion = torch.nn.CrossEntropyLoss()
+    criterion = torch.nn.CrossEntropyLoss(weight=class_weighting)
     optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=momentum)
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -416,14 +417,14 @@ def grid_search(crop_size, process, train_set, model, model_name, patience, para
 
     for idx, param_comb in enumerate(param_combinations):
         params = dict(zip(param_names, param_comb))
-        bsz, lr, momentum, seed = params['bsz'], params['lr'], params['momentum'], params['seed']
+        bsz, lr, momentum, seed, pos_class_weights = params['bsz'], params['lr'], params['momentum'], params['seed'], params['pos_class_weights']
 
         print(f"Grid search iteration {idx + 1}/{len(param_combinations)} with params: {params} on model: {model_name}")
         set_seed(seed)
 
         model_copy = copy.deepcopy(model)
 
-        metrics = run_model_training(crop_size, process, train_set, model_copy, model_name, bsz, lr, momentum, patience, tuning_strategy, log_dr, data_root, num_epochs, num_workers, single,seed=seed)
+        metrics = run_model_training(crop_size, process, train_set, model_copy, model_name, bsz, lr, momentum, patience, tuning_strategy, log_dr, data_root, num_epochs, num_workers, single,seed=seed,pos_class_weights=pos_class_weights)
 
         avg_auc = (metrics['test_auc'][-1] + metrics['ext1_auc'][-1] + metrics['ext2_auc'][-1] + metrics['ext3_auc'][-1]) / 4
 
@@ -486,6 +487,9 @@ def parse_args():
 
     # Optional seed
     parser.add_argument("--seed", nargs='+', type=int, default=42, help="Random seed - supports list")
+
+    # Class weights
+    parser.add_argument("--pos_class_weights", nargs='+', type=float, default=[1.0], help="List of weights to eval for positive class. Negative weight left as 1.0")
 
     return parser.parse_args()
 
@@ -555,7 +559,8 @@ def main():
         'bsz': args.batch_sizes,
         'lr': args.learning_rates,
         'momentum': args.momentums,
-        'seed': args.seed
+        'seed': args.seed,
+        'pos_class_weights': args.pos_class_weights
     }
 
     # Run the grid search

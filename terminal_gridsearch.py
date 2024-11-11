@@ -225,11 +225,11 @@ def convert_to_single_channel(model):
 
     return model
 
-def run_model_training(crop_size, process, train_set, model, model_name, bsz, lr, momentum, patience, tuning_strategy, log_dr,data_root="/content/", num_epochs=10,num_workers=8, single=False, seed=None,pos_class_weights=1.0):
+def run_model_training(crop_size, process, train_set, model, model_name, bsz, lr, momentum, patience, tuning_strategy, log_dr,data_root="/content/", num_epochs=10,num_workers=8, single=False, seed=None,pos_class_weight=1.0):
     """
     Train the model and log results to TensorBoard, organizing logs by tuning strategy, model, and hyperparameters.
     """
-    class_weighting = [1.0,pos_class_weights]
+    class_weighting = [1.0,pos_class_weight]
 
     # Create a log directory based on the tuning strategy, model name, and hyperparameters
     log_dir = os.path.join(
@@ -238,7 +238,7 @@ def run_model_training(crop_size, process, train_set, model, model_name, bsz, lr
         process,
         tuning_strategy,  # Directory for the tuning strategy
         model_name,  # Subdirectory for the model type
-        f"lr_{lr}_bsz_{bsz}_mom_{momentum}_seed_{seed}"  # Subdirectory for hyperparameter configuration
+        f"lr_{lr}_bsz_{bsz}_mom_{momentum}_seed_{seed}_pos-weight_{pos_class_weight}"  # Subdirectory for hyperparameter configuration
     )
 
     # Ensure the directory structure is created properly
@@ -401,7 +401,7 @@ def run_model_training(crop_size, process, train_set, model, model_name, bsz, lr
     )
     if not os.path.exists(out_model_path):
         os.makedirs(out_model_path)
-    out_model_name = f"model_lr_{lr}_bsz_{bsz}_mom_{momentum}_seed_{seed}.pth"
+    out_model_name = f"model_lr_{lr}_bsz_{bsz}_mom_{momentum}_seed_{seed}_pos-weight_{pos_class_weight}.pth"
     torch.save(final_model, os.path.join(out_model_path,out_model_name))
     return metrics_dict
 
@@ -417,14 +417,14 @@ def grid_search(crop_size, process, train_set, model, model_name, patience, para
 
     for idx, param_comb in enumerate(param_combinations):
         params = dict(zip(param_names, param_comb))
-        bsz, lr, momentum, seed, pos_class_weights = params['bsz'], params['lr'], params['momentum'], params['seed'], params['pos_class_weights']
+        bsz, lr, momentum, seed, pos_class_weight = params['bsz'], params['lr'], params['momentum'], params['seed'], params['pos_class_weights']
 
         print(f"Grid search iteration {idx + 1}/{len(param_combinations)} with params: {params} on model: {model_name}")
         set_seed(seed)
 
         model_copy = copy.deepcopy(model)
 
-        metrics = run_model_training(crop_size, process, train_set, model_copy, model_name, bsz, lr, momentum, patience, tuning_strategy, log_dr, data_root, num_epochs, num_workers, single,seed=seed,pos_class_weights=pos_class_weights)
+        metrics = run_model_training(crop_size, process, train_set, model_copy, model_name, bsz, lr, momentum, patience, tuning_strategy, log_dr, data_root, num_epochs, num_workers, single,seed=seed,pos_class_weight=pos_class_weight)
 
         avg_auc = (metrics['test_auc'][-1] + metrics['ext1_auc'][-1] + metrics['ext2_auc'][-1] + metrics['ext3_auc'][-1]) / 4
 

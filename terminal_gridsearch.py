@@ -583,7 +583,7 @@ def main():
         data_root=args.data_root,
         num_workers=args.num_workers,
         log_dr=args.log_dr,
-        single=True if args.model_type == "final_single" else False
+        single=True if "final_single" in args.model_type else False
     )
 
     print(f"Best parameters found: {best_params}")

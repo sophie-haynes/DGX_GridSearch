@@ -470,7 +470,7 @@ def parse_args():
     parser.add_argument("--crop_size", type=int, default=224, help="Crop size for image preprocessing")
     parser.add_argument("--process", type=str, required=True, choices=["crop", "arch_seg", "lung_seg"], help="Process type")
     parser.add_argument("--train_set", type=str, required=True, help="Training dataset name (e.g., 'cxr14')")
-    parser.add_argument("--model_type", type=str, required=True, choices=["base", "grey","grey89", "final_base", "final_grey", "final_single","final_base99", "final_grey99",], help="Model type (base or grey)")
+    parser.add_argument("--model_type", type=str, required=True, choices=["base", "grey","grey89", "final_base", "final_grey", "final_single","final_single_last","final_base99", "final_grey99",], help="Model type (base or grey)")
     parser.add_argument("--tuning_strategy", type=str, required=True, choices=["final_layer", "half_network", "first_layer_freeze","full_network"], help="Tuning strategy")
     parser.add_argument("--epochs", type=int, default=10, help="Number of epochs for training")
     parser.add_argument("--patience", type=int, default=5, help="Patience for early stopping")

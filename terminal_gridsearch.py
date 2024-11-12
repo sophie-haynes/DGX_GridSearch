@@ -434,7 +434,7 @@ def run_model_training(crop_size, process, train_set, model, model_name, bsz, lr
     torch.save(final_model, os.path.join(out_model_path,out_model_name))
     return metrics_dict
 
-def grid_search(crop_size, process, train_set, model, model_name, patience, param_grid, tuning_strategy, num_epochs=10, data_root="/content/",num_workers=8,log_dr="runs",single=False):
+def grid_search(crop_size, process, train_set, model, model_name, patience, param_grid, tuning_strategy, num_epochs=10, data_root="/content/",num_workers=8,log_dr="runs",single=False,tgt_mom_epoch=None):
     """Perform a grid search to identify the best hyperparameter configuration."""
     best_params = None
     best_score = float('-inf')
@@ -446,7 +446,7 @@ def grid_search(crop_size, process, train_set, model, model_name, patience, para
 
     for idx, param_comb in enumerate(param_combinations):
         params = dict(zip(param_names, param_comb))
-        bsz, lr, momentum, seed, pos_class_weight, tgt_mom,tgt_mom_epoch = params['bsz'], params['lr'], params['momentum'], params['seed'], params['pos_class_weights'],params['target_momentum'],params['target_momentum_epoch']
+        bsz, lr, momentum, seed, pos_class_weight, tgt_mom = params['bsz'], params['lr'], params['momentum'], params['seed'], params['pos_class_weights'],params['target_momentum']
         if tgt_mom_epoch is not None:
             tgt_mom_rate = (tgt_mom_epoch-momentum)/num_epochs
         else:
@@ -589,7 +589,6 @@ def main():
         'lr': args.learning_rates,
         'momentum': args.momentums,
         'target_momentum': args.target_momentums,
-        'target_momentum_epoch': args.target_momentums_epoch,
         'seed': args.seed,
         'pos_class_weights': args.pos_class_weights
     }
@@ -608,7 +607,8 @@ def main():
         data_root=args.data_root,
         num_workers=args.num_workers,
         log_dr=args.log_dr,
-        single=True if "final_single" in args.model_type else False
+        single=True if "final_single" in args.model_type else False,
+        tgt_mom_epoch = args.target_momentums_epoch,
     )
 
     print(f"Best parameters found: {best_params}")

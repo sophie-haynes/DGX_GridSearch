@@ -576,8 +576,8 @@ def main():
     if args.target_momentums is not None:
         for tg_mom in args.target_momentums:
             for mom in args.momentums:
-                if tg_mom >= mom:
-                    raise ValueError("Target momentum ({}) must be less than momentum{}!".format(tg_mom,mom))
+                if tg_mom <= mom:
+                    raise ValueError("Target momentum ({}) must be more than momentum{}!".format(tg_mom,mom))
         if args.target_momentums_epoch is None:
             raise ValueError("Target momentum epochs (--target_momentums_epoch) must be set with target momentum!")
         else:

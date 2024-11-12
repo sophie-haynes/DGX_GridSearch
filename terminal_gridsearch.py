@@ -238,7 +238,7 @@ def run_model_training(crop_size, process, train_set, model, model_name, bsz, lr
         log_dir = os.path.join(
             # "/content/drive/MyDrive/alignment/runs",
             log_dr,
-            f"linmom_{target_mom}_{tgt_mom_rate}",
+            f"linmom_{target_mom}_{target_mom_rate}",
             process,
             tuning_strategy,  # Directory for the tuning strategy
             model_name,  # Subdirectory for the model type

@@ -490,7 +490,7 @@ def parse_args():
     parser.add_argument("--batch_sizes", nargs='+', type=int, default=[16, 32, 64], help="List of batch sizes")
     parser.add_argument("--momentums", nargs='+', type=float, default=[0.9, 0.95, 0.99], help="List of momentums")
     parser.add_argument("--target_momentums", nargs='+', type=float, help="Target momentums to reach (assumes momentums has been set as initial momentum).")
-    parser.add_argument("--target_momentums_epoch", nargs='1', type=float, help="Epoch target momentum should be reached.")
+    parser.add_argument("--target_momentums_epoch", type=float, help="Epoch target momentum should be reached.")
 
 
 

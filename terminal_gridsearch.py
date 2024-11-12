@@ -225,7 +225,7 @@ def convert_to_single_channel(model):
 
     return model
 
-def run_model_training(crop_size, process, train_set, model, model_name, bsz, lr, momentum, patience, tuning_strategy, log_dr,data_root="/content/", num_epochs=10,num_workers=8, single=False, seed=None,pos_class_weight=1.0):
+def run_model_training(crop_size, process, train_set, model, model_name, bsz, lr, momentum, patience, tuning_strategy, log_dr,data_root="/content/", num_epochs=10,num_workers=8, single=False, seed=None,pos_class_weight=1.0,target_mom=None,target_mom_rate=None):
     """
     Train the model and log results to TensorBoard, organizing logs by tuning strategy, model, and hyperparameters.
     """
@@ -233,15 +233,27 @@ def run_model_training(crop_size, process, train_set, model, model_name, bsz, lr
 
     class_weighting = torch.Tensor([1.0,pos_class_weight]).to(device)
 
-    # Create a log directory based on the tuning strategy, model name, and hyperparameters
-    log_dir = os.path.join(
-        # "/content/drive/MyDrive/alignment/runs",
-        log_dr,
-        process,
-        tuning_strategy,  # Directory for the tuning strategy
-        model_name,  # Subdirectory for the model type
-        f"lr_{lr}_bsz_{bsz}_mom_{momentum}_seed_{seed}_posWeight_{pos_class_weight}"  # Subdirectory for hyperparameter configuration
-    )
+    if target_mom is not None:
+        # Create a log directory based on the tuning strategy, model name, and hyperparameters
+        log_dir = os.path.join(
+            # "/content/drive/MyDrive/alignment/runs",
+            log_dr,
+            f"linmom_{target_mom}_{tgt_mom_rate}",
+            process,
+            tuning_strategy,  # Directory for the tuning strategy
+            model_name,  # Subdirectory for the model type
+            f"lr_{lr}_bsz_{bsz}_mom_{momentum}_seed_{seed}_posWeight_{pos_class_weight}"  # Subdirectory for hyperparameter configuration
+        )
+    else:
+        # Create a log directory based on the tuning strategy, model name, and hyperparameters
+        log_dir = os.path.join(
+            # "/content/drive/MyDrive/alignment/runs",
+            log_dr,
+            process,
+            tuning_strategy,  # Directory for the tuning strategy
+            model_name,  # Subdirectory for the model type
+            f"lr_{lr}_bsz_{bsz}_mom_{momentum}_seed_{seed}_posWeight_{pos_class_weight}"  # Subdirectory for hyperparameter configuration
+        )
 
     # Ensure the directory structure is created properly
     os.makedirs(log_dir, exist_ok=True)
@@ -342,6 +354,19 @@ def run_model_training(crop_size, process, train_set, model, model_name, bsz, lr
         model.train()
         running_loss = 0.0
 
+        # enable linear scaling momentum
+        if target_mom is not None:
+            # check if momentum needs increasing
+            if momentum < target_mom:
+                # increase
+                momentum += target_mom_rate
+                # check if addition has exceeded target
+                if momentum > target_mom:
+                    momentum = target_mom
+                # update momentum
+                for param_group in optimizer.param_groups:
+                    param_group['momentum'] = momentum
+
         for i, data in enumerate(trainloader, 0):
             inputs, labels = data[0].to(device), data[1].to(device)
             optimizer.zero_grad()
@@ -403,6 +428,9 @@ def run_model_training(crop_size, process, train_set, model, model_name, bsz, lr
     if not os.path.exists(out_model_path):
         os.makedirs(out_model_path)
     out_model_name = f"model_lr_{lr}_bsz_{bsz}_mom_{momentum}_seed_{seed}_pos-weight_{pos_class_weight}.pth"
+    if target_mom is not None:
+        out_model_name = f"linmom_{target_mom}_{tgt_mom_rate}/"+out_model_name
+
     torch.save(final_model, os.path.join(out_model_path,out_model_name))
     return metrics_dict
 
@@ -418,14 +446,18 @@ def grid_search(crop_size, process, train_set, model, model_name, patience, para
 
     for idx, param_comb in enumerate(param_combinations):
         params = dict(zip(param_names, param_comb))
-        bsz, lr, momentum, seed, pos_class_weight = params['bsz'], params['lr'], params['momentum'], params['seed'], params['pos_class_weights']
+        bsz, lr, momentum, seed, pos_class_weight, tgt_mom,tgt_mom_epoch = params['bsz'], params['lr'], params['momentum'], params['seed'], params['pos_class_weights'],params['target_momentum'],params['target_momentum_epoch']
+        if tgt_mom_epoch is not None:
+            tgt_mom_rate = (tgt_mom_epoch-momentum)/num_epochs
+        else:
+            tgt_mom_rate = None
 
         print(f"Grid search iteration {idx + 1}/{len(param_combinations)} with params: {params} on model: {model_name}")
         set_seed(seed)
 
         model_copy = copy.deepcopy(model)
 
-        metrics = run_model_training(crop_size, process, train_set, model_copy, model_name, bsz, lr, momentum, patience, tuning_strategy, log_dr, data_root, num_epochs, num_workers, single,seed=seed,pos_class_weight=pos_class_weight)
+        metrics = run_model_training(crop_size, process, train_set, model_copy, model_name, bsz, lr, momentum, patience, tuning_strategy, log_dr, data_root, num_epochs, num_workers, single,seed=seed,pos_class_weight=pos_class_weight,target_mom=tgt_mom,target_mom_rate=tgt_mom_rate)
 
         avg_auc = (metrics['test_auc'][-1] + metrics['ext1_auc'][-1] + metrics['ext2_auc'][-1] + metrics['ext3_auc'][-1]) / 4
 
@@ -439,28 +471,6 @@ def grid_search(crop_size, process, train_set, model, model_name, patience, para
 
     print(f"Best hyperparameters: {best_params}, AUC: {best_score:.3f}")
     return best_params
-
-# def validate_best_params(crop_size, process, train_set, model, model_name, best_params, patience, seeds, tuning_strategy, log_dr, num_epochs=10, data_root="/content/", single=False):
-#     """Validate the best hyperparameters across multiple seeds."""
-#     bsz = best_params['bsz']
-#     lr = best_params['lr']
-#     momentum = best_params['momentum']
-#
-#     results = {'test_auc': [], 'ext1_auc': [], 'ext2_auc': [], 'ext3_auc': []}
-#
-#     for i, seed in enumerate(seeds):
-#         print(f"Validation with seed {seed} (Run {i+1}/{len(seeds)}) with best params: {best_params}")
-#         set_seed(seed)
-#
-#         metrics = run_model_training(crop_size, process, train_set, model, model_name, bsz, lr, momentum, patience, tuning_strategy, log_dr, data_root, num_epochs, single)
-#         results['test_auc'].append(metrics['test_auc'])
-#         results['ext1_auc'].append(metrics['ext1_auc'])
-#         results['ext2_auc'].append(metrics['ext2_auc'])
-#         results['ext3_auc'].append(metrics['ext3_auc'])
-#
-#     avg_results = {key: np.mean(values) for key, values in results.items()}
-#     print(f"Average performance across seeds: {avg_results}")
-#     return avg_results
 
 
 def parse_args():
@@ -479,6 +489,9 @@ def parse_args():
     parser.add_argument("--learning_rates", nargs='+', type=float, default=[0.001, 0.01, 0.1], help="List of learning rates")
     parser.add_argument("--batch_sizes", nargs='+', type=int, default=[16, 32, 64], help="List of batch sizes")
     parser.add_argument("--momentums", nargs='+', type=float, default=[0.9, 0.95, 0.99], help="List of momentums")
+    parser.add_argument("--target_momentums", nargs='+', type=float, help="Target momentums to reach (assumes momentums has been set as initial momentum).")
+    parser.add_argument("--target_momentums_epoch", nargs='1', type=float, help="Epoch target momentum should be reached.")
+
 
 
     # Add args for experiment config
@@ -560,11 +573,23 @@ def main():
     # Initialize the model based on the type ('base' or 'grey')
     model = initialize_model(args.model_type)
 
+    if args.target_momentums is not None:
+        for tg_mom in args.target_momentums:
+            for mom in args.momentums:
+                if tg_mom >= mom:
+                    raise ValueError("Target momentum ({}) must be less than momentum{}!".format(tg_mom,mom))
+        if args.target_momentums_epoch is None:
+            raise ValueError("Target momentum epochs (--target_momentums_epoch) must be set with target momentum!")
+        else:
+            if args.target_momentums_epoch > args.epochs:
+                raise ValueError("Target momentum epoch {} must be less than or equal to the total number of training epochs{}!".format(args.target_momentums_epoch, args.epochs))
     # Hyperparameter grid for grid search
     param_grid = {
         'bsz': args.batch_sizes,
         'lr': args.learning_rates,
         'momentum': args.momentums,
+        'target_momentum': args.target_momentums,
+        'target_momentum_epoch': args.target_momentums_epoch,
         'seed': args.seed,
         'pos_class_weights': args.pos_class_weights
     }

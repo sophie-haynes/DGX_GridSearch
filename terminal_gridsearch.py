@@ -429,7 +429,7 @@ def run_model_training(crop_size, process, train_set, model, model_name, bsz, lr
         os.makedirs(out_model_path)
     out_model_name = f"model_lr_{lr}_bsz_{bsz}_mom_{momentum}_seed_{seed}_pos-weight_{pos_class_weight}.pth"
     if target_mom is not None:
-        out_model_name = f"linmom_{target_mom}_{tgt_mom_rate}/"+out_model_name
+        out_model_name = f"linmom_{target_mom}_{target_mom_rate}/"+out_model_name
 
     torch.save(final_model, os.path.join(out_model_path,out_model_name))
     return metrics_dict

@@ -441,6 +441,12 @@ def grid_search(crop_size, process, train_set, model, model_name, patience, para
     best_params = None
     best_score = float('-inf')
 
+    # handle unset/unwanted flags
+    for key in list(param_grid.keys()):
+        if param_grid.get(key) is None:
+            param_grid.pop(key)
+
+
     param_combinations = list(itertools.product(*param_grid.values()))
     param_names = list(param_grid.keys())
 
@@ -448,9 +454,11 @@ def grid_search(crop_size, process, train_set, model, model_name, patience, para
 
     for idx, param_comb in enumerate(param_combinations):
         params = dict(zip(param_names, param_comb))
-        bsz, lr, momentum, seed, pos_class_weight, tgt_mom = params['bsz'], params['lr'], params['momentum'], params['seed'], params['pos_class_weights'],params['target_momentum']
+        bsz, lr, momentum, seed, pos_class_weight = params['bsz'], params['lr'], params['momentum'], params['seed'], params['pos_class_weights']
+
         if tgt_mom_epoch is not None:
-            tgt_mom_rate = (tgt_mom_epoch-momentum)/num_epochs
+            tgt_mom = params['target_momentum']
+            tgt_mom_rate = (tgt_mom_epoch-momentum)/tgt_mom_epoch
         else:
             tgt_mom_rate = None
 

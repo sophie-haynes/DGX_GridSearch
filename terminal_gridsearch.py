@@ -461,6 +461,7 @@ def grid_search(crop_size, process, train_set, model, model_name, patience, para
             tgt_mom_rate = (tgt_mom_epoch-momentum)/tgt_mom_epoch
         else:
             tgt_mom_rate = None
+            tgt_mom = None
 
         print(f"Grid search iteration {idx + 1}/{len(param_combinations)} with params: {params} on model: {model_name}")
         set_seed(seed)

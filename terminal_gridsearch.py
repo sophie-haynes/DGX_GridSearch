@@ -124,10 +124,6 @@ def evaluate_gpu_metrics(model, dataloader, device):
     prec =  BinaryPrecision()
     rec = BinaryRecall()
 
-    # prec98 = BinaryPrecisionAtSensitivity(min_recall=0.98)
-    # spec98 = BinarySpecificityAtSensitivity(min_sensitivity=0.98)
-    # fbeta = BinaryFBetaScore(beta=2.0)
-
     with torch.no_grad():
         for data in dataloader:
             inputs, labels = data[0].to(device), data[1].to(device)
@@ -136,12 +132,6 @@ def evaluate_gpu_metrics(model, dataloader, device):
             f1.update(torch.softmax(outputs, dim=1)[:, 1],labels)
             prec.update(torch.softmax(outputs, dim=1)[:, 1],labels)
             rec.update(torch.softmax(outputs, dim=1)[:, 1],labels)
-            # auroc.update(outputs,labels)
-            # f1.update(outputs,labels)
-            # prec.update(outputs,labels)
-            # rec.update(outputs,labels)
-
-
     return prec.compute().item(), rec.compute().item(), f1.compute().item(), auroc.compute().item()
 
 
@@ -225,7 +215,8 @@ def convert_to_single_channel(model):
 
     return model
 
-def run_model_training(crop_size, process, train_set, model, model_name, bsz, lr, momentum, patience, tuning_strategy, log_dr,data_root="/content/", num_epochs=10,num_workers=8, single=False, seed=None,pos_class_weight=1.0,target_mom=None,target_mom_rate=None):
+# def run_model_training(crop_size, process, train_set, model, model_name, bsz, lr, momentum, patience, tuning_strategy, log_dr,data_root="/content/", num_epochs=10,num_workers=8, single=False, seed=None,pos_class_weight=1.0,target_mom=None,target_mom_rate=None):
+def run_model_training(model, bsz, lr, momentum, seed, pos_class_weight, target_mom, target_mom_rate, args):
     """
     Train the model and log results to TensorBoard, organizing logs by tuning strategy, model, and hyperparameters.
     """
@@ -233,25 +224,27 @@ def run_model_training(crop_size, process, train_set, model, model_name, bsz, lr
 
     class_weighting = torch.Tensor([1.0,pos_class_weight]).to(device)
 
+    single= True if "single" in args.model_type else False
+
     if target_mom is not None:
         # Create a log directory based on the tuning strategy, model name, and hyperparameters
         log_dir = os.path.join(
             # "/content/drive/MyDrive/alignment/runs",
-            log_dr,
+            args.log_dir,
             f"linmom_{target_mom}_{target_mom_rate}",
-            process,
-            tuning_strategy,  # Directory for the tuning strategy
-            model_name,  # Subdirectory for the model type
+            args.process,
+            args.tuning_strategy,  # Directory for the tuning strategy
+            args.model_type,  # Subdirectory for the model type
             f"lr_{lr}_bsz_{bsz}_mom_{momentum}_seed_{seed}_posWeight_{pos_class_weight}"  # Subdirectory for hyperparameter configuration
         )
     else:
         # Create a log directory based on the tuning strategy, model name, and hyperparameters
         log_dir = os.path.join(
             # "/content/drive/MyDrive/alignment/runs",
-            log_dr,
-            process,
-            tuning_strategy,  # Directory for the tuning strategy
-            model_name,  # Subdirectory for the model type
+            args.log_dir,
+            args.process,
+            args.tuning_strategy,  # Directory for the tuning strategy
+            args.model_type,  # Subdirectory for the model type
             f"lr_{lr}_bsz_{bsz}_mom_{momentum}_seed_{seed}_posWeight_{pos_class_weight}"  # Subdirectory for hyperparameter configuration
         )
 
@@ -262,22 +255,22 @@ def run_model_training(crop_size, process, train_set, model, model_name, bsz, lr
     writer = SummaryWriter(log_dir=log_dir)
 
     ext_names = ['cxr14', 'padchest', 'openi', 'jsrt']
-    if train_set not in ext_names:
+    if args.train_set not in ext_names:
         raise ValueError("Invalid train_set value. Must be one of 'cxr14', 'padchest', 'openi', or 'jsrt'.")
     else:
-        ext_names.remove(train_set)
+        ext_names.remove(args.train_set)
 
     std_dir = "std_1024"
-    if process == "crop":
-        mean = crop_dict[train_set][0]
-        std = crop_dict[train_set][1]
-    elif process == "arch_seg":
-        mean = arch_seg_dict[train_set][0]
-        std = arch_seg_dict[train_set][1]
+    if args.process == "crop":
+        mean = crop_dict[args.train_set][0]
+        std = crop_dict[args.train_set][1]
+    elif args.process == "arch_seg":
+        mean = arch_seg_dict[args.train_set][0]
+        std = arch_seg_dict[args.train_set][1]
         std_dir = "flat_std_1024"
-    elif process == "lung_seg":
-        mean = lung_seg_dict[train_set][0]
-        std = lung_seg_dict[train_set][1]
+    elif args.process == "lung_seg":
+        mean = lung_seg_dict[args.train_set][0]
+        std = lung_seg_dict[args.train_set][1]
     else:
         raise ValueError("Invalid process value. Must be 'crop', 'arch_seg', or 'lung_seg'.")
 
@@ -285,18 +278,18 @@ def run_model_training(crop_size, process, train_set, model, model_name, bsz, lr
     normalise = v2.Normalize(mean=mean, std=std)
 
     # Set the tuning strategy (which layers to freeze/unfreeze)
-    set_model_tuning(model, tuning_strategy)
+    set_model_tuning(model, args.tuning_strategy)
 
     # Data transformations
-    train_transform = get_cxr_train_transforms(crop_size, normalise, single)
-    test_transform = get_cxr_eval_transforms(crop_size, normalise, single)
+    train_transform = get_cxr_train_transforms(args.crop_size, normalise, single)
+    test_transform = get_cxr_eval_transforms(args.crop_size, normalise, single)
 
     # Load datasets
-    train_path = os.path.join(data_root, train_set, process, std_dir, "train")
-    test_path = os.path.join(data_root, train_set, process, std_dir, "test")
-    ext1_path = os.path.join(data_root, ext_names[0], process, std_dir, "test")
-    ext2_path = os.path.join(data_root, ext_names[1], process, std_dir, "test")
-    ext3_path = os.path.join(data_root, ext_names[2], process, std_dir, "test")
+    train_path = os.path.join(args.data_root, args.train_set, args.process, std_dir, "train")
+    test_path = os.path.join(args.data_root, args.train_set, args.process, std_dir, "test")
+    ext1_path = os.path.join(args.data_root, ext_names[0], args.process, std_dir, "test")
+    ext2_path = os.path.join(args.data_root, ext_names[1], args.process, std_dir, "test")
+    ext3_path = os.path.join(args.data_root, ext_names[2], args.process, std_dir, "test")
 
     def remap_labels(label):
         # mapping_dict = {'normal': 0, 'nodule': 1}
@@ -308,11 +301,11 @@ def run_model_training(crop_size, process, train_set, model, model_name, bsz, lr
     ext2set = torchvision.datasets.ImageFolder(root=ext2_path, transform=v2.Compose(test_transform), target_transform=remap_labels)
     ext3set = torchvision.datasets.ImageFolder(root=ext3_path, transform=v2.Compose(test_transform), target_transform=remap_labels)
 
-    trainloader = torch.utils.data.DataLoader(trainset, batch_size=bsz, shuffle=True, num_workers=num_workers, pin_memory=True)
-    testloader = torch.utils.data.DataLoader(testset, batch_size=bsz, shuffle=False, num_workers=num_workers, pin_memory=True)
-    ext1loader = torch.utils.data.DataLoader(ext1set, batch_size=bsz, shuffle=False, num_workers=num_workers, pin_memory=True)
-    ext2loader = torch.utils.data.DataLoader(ext2set, batch_size=bsz, shuffle=False, num_workers=num_workers, pin_memory=True)
-    ext3loader = torch.utils.data.DataLoader(ext3set, batch_size=bsz, shuffle=False, num_workers=num_workers, pin_memory=True)
+    trainloader = torch.utils.data.DataLoader(trainset, batch_size=bsz, shuffle=True, num_workers=args.num_workers, pin_memory=True)
+    testloader = torch.utils.data.DataLoader(testset, batch_size=bsz, shuffle=False, num_workers=args.num_workers, pin_memory=True)
+    ext1loader = torch.utils.data.DataLoader(ext1set, batch_size=bsz, shuffle=False, num_workers=args.num_workers, pin_memory=True)
+    ext2loader = torch.utils.data.DataLoader(ext2set, batch_size=bsz, shuffle=False, num_workers=args.num_workers, pin_memory=True)
+    ext3loader = torch.utils.data.DataLoader(ext3set, batch_size=bsz, shuffle=False, num_workers=args.num_workers, pin_memory=True)
 
 
 
@@ -348,9 +341,9 @@ def run_model_training(crop_size, process, train_set, model, model_name, bsz, lr
 
     }
 
-    print(f"Training model: {model_name} for {num_epochs} epochs with seed: {torch.initial_seed()}")
+    print(f"Training model: {args.model_type} for {args.epochs} epochs with seed: {torch.initial_seed()}")
 
-    for epoch in range(num_epochs):
+    for epoch in range(args.epochs):
         model.train()
         running_loss = 0.0
 
@@ -378,10 +371,21 @@ def run_model_training(crop_size, process, train_set, model, model_name, bsz, lr
             running_loss += loss.item()
 
         avg_loss = running_loss / len(trainloader)
-        print(f'Epoch {epoch + 1}/{num_epochs}, Loss: {avg_loss:.3f}')
+        print(f'Epoch {epoch + 1}/{args.epochs}, Loss: {avg_loss:.3f}')
         writer.add_scalar('Loss/train', avg_loss, epoch + 1)
         metrics_dict["epoch"].append(epoch + 1)
         metrics_dict["train_loss"].append(avg_loss)
+
+        #save model 
+        checkpoint = {
+            "model": model.state_dict(),
+            "optimizer": optimizer.state_dict(),
+            "epoch": epoch,
+            "args": args,
+        }
+
+        torch.save(checkpoint, os.path.join(args.output_dir, f"model_{epoch}.pth"))
+        torch.save(checkpoint, os.path.join(args.output_dir, "checkpoint.pth"))
         # Evaluate on all test sets
         for test_name, loader in zip(['test', 'ext1', 'ext2', 'ext3'], [testloader, ext1loader, ext2loader, ext3loader]):
             # precision, recall, f1, auc = evaluate_model(model, loader, device)
@@ -408,7 +412,7 @@ def run_model_training(crop_size, process, train_set, model, model_name, bsz, lr
         else:
             epochs_no_improve += 1
 
-        if epochs_no_improve >= patience:
+        if epochs_no_improve >= args.patience:
             print(f"Early stopping after {epochs_no_improve} epochs with no improvement.")
             break
 
@@ -420,10 +424,9 @@ def run_model_training(crop_size, process, train_set, model, model_name, bsz, lr
         "epoch": epoch,
     }
     out_model_path = os.path.join(
-        "/home/local/data/sophie/transfer",
-        model_name,
+        args.output_dir,
         tuning_strategy,  # Directory for the tuning strategy
-        model_name,  # Subdirectory for the model type
+        args.model_type,  # Subdirectory for the model type
     )
 
     out_model_name = f"model_lr_{lr}_bsz_{bsz}_mom_{momentum}_seed_{seed}_pos-weight_{pos_class_weight}.pth"
@@ -436,7 +439,8 @@ def run_model_training(crop_size, process, train_set, model, model_name, bsz, lr
     torch.save(final_model, os.path.join(out_model_path,out_model_name))
     return metrics_dict
 
-def grid_search(crop_size, process, train_set, model, model_name, patience, param_grid, tuning_strategy, num_epochs=10, data_root="/content/",num_workers=8,log_dr="runs",single=False,tgt_mom_epoch=None):
+# def grid_search(crop_size, process, train_set, model, model_name, patience, param_grid, tuning_strategy, num_epochs=10, data_root="/content/",num_workers=8,log_dr="runs",single=False,tgt_mom_epoch=None):
+def grid_search(model, param_grid, args):
     """Perform a grid search to identify the best hyperparameter configuration."""
     best_params = None
     best_score = float('-inf')
@@ -456,19 +460,20 @@ def grid_search(crop_size, process, train_set, model, model_name, patience, para
         params = dict(zip(param_names, param_comb))
         bsz, lr, momentum, seed, pos_class_weight = params['bsz'], params['lr'], params['momentum'], params['seed'], params['pos_class_weights']
 
-        if tgt_mom_epoch is not None:
+        if args.target_momentums_epoch is not None:
             tgt_mom = params['target_momentum']
-            tgt_mom_rate = (tgt_mom_epoch-momentum)/tgt_mom_epoch
+            tgt_mom_rate = (args.target_momentums_epoch-momentum)/args.target_momentums_epoch
         else:
             tgt_mom_rate = None
             tgt_mom = None
 
-        print(f"Grid search iteration {idx + 1}/{len(param_combinations)} with params: {params} on model: {model_name}")
+        print(f"Grid search iteration {idx + 1}/{len(param_combinations)} with params: {params} on model: {args.model_type}")
         set_seed(seed)
 
         model_copy = copy.deepcopy(model)
 
-        metrics = run_model_training(crop_size, process, train_set, model_copy, model_name, bsz, lr, momentum, patience, tuning_strategy, log_dr, data_root, num_epochs, num_workers, single,seed=seed,pos_class_weight=pos_class_weight,target_mom=tgt_mom,target_mom_rate=tgt_mom_rate)
+        # metrics = run_model_training(crop_size, process, train_set, model_copy, model_name, bsz, lr, momentum, patience, tuning_strategy, log_dr, data_root, num_epochs, num_workers, single,seed=seed,pos_class_weight=pos_class_weight,target_mom=tgt_mom,target_mom_rate=tgt_mom_rate)
+        metrics = run_model_training(model_copy, bsz, lr, momentum, seed, pos_class_weight, tgt_mom_rate, tgt_mom, args)
 
         avg_auc = (metrics['test_auc'][-1] + metrics['ext1_auc'][-1] + metrics['ext2_auc'][-1] + metrics['ext3_auc'][-1]) / 4
 
@@ -491,7 +496,10 @@ def parse_args():
     parser.add_argument("--crop_size", type=int, default=224, help="Crop size for image preprocessing")
     parser.add_argument("--process", type=str, required=True, choices=["crop", "arch_seg", "lung_seg"], help="Process type")
     parser.add_argument("--train_set", type=str, required=True, help="Training dataset name (e.g., 'cxr14')")
-    parser.add_argument("--model_type", type=str, required=True, choices=["base", "grey","grey89", "final_base", "final_grey", "final_single","final_single_last","final_base99", "final_grey99",], help="Model type (base or grey)")
+    # parser.add_argument("--model_type", type=str, required=True, choices=["base", "grey","grey89", "final_base", "final_grey", "final_single","final_single_last","final_base99", "final_grey99",], help="Model type (base or grey)")
+    parser.add_argument("--model_type", type=str, required=True, \
+                        choices=['grey', 'base', 'single', 'grey65', 'base65', 'single65'], \
+                        help="Model type ['grey', 'base', 'single', 'grey65', 'base65', 'single65']")
     parser.add_argument("--tuning_strategy", type=str, required=True, choices=["final_layer", "half_network", "first_layer_freeze","full_network"], help="Tuning strategy")
     parser.add_argument("--epochs", type=int, default=10, help="Number of epochs for training")
     parser.add_argument("--patience", type=int, default=5, help="Patience for early stopping")
@@ -508,7 +516,8 @@ def parse_args():
     # Add args for experiment config
     parser.add_argument("--num_workers", type=int, default=8, help="Number of workers for dataloader")
     parser.add_argument("--data_root", type=str, required=True, help="Root data folder (contains 'cxr14'...")
-    parser.add_argument("--log_dr", type=str, help="Tensorboard logging folder")
+    parser.add_argument("--log_dir", type=str, default="runs", help="Tensorboard logging folder")
+    parser.add_argument("--output_dir", type=str, default="models", help="Model save folder")
 
     # Optional seed
     parser.add_argument("--seed", nargs='+', type=int, default=42, help="Random seed - supports list")
@@ -523,50 +532,76 @@ def initialize_model(model_type):
     num_classes = 2
     """Initialize and return the model based on the type specified."""
     if model_type == "base":
-        model = torchvision.models.resnet50(pretrained=True)
+        # model = torchvision.models.resnet50(pretrained=True)
+        weights = torch.load("/home/local/data/sophie/imagenet/output/FullGPU/base/256/model_89.pth", map_location='cpu', weights_only=False)
+        model = get_model("resnet50",weights=None,num_classes=1000)
+        model.load_state_dict(weights["model"])
     elif model_type == "grey":
-        model = torchvision.models.resnet50(pretrained=True)
-        weights = torch.load("/home/local/data/sophie/model_75.pth", map_location='cpu')
-        new_state_dict = {}
-        for k, v in weights['model'].items():
-            k = k.replace("module.", "")
-            new_state_dict[k] = v
-        model.load_state_dict(new_state_dict)
-    elif model_type == "grey89":
-        model = torchvision.models.resnet50(pretrained=True)
-        weights = torch.load("/home/local/data/sophie/model_89.pth", map_location='cpu')
-        new_state_dict = {}
-        for k, v in weights['model'].items():
-            k = k.replace("module.", "")
-            new_state_dict[k] = v
-        model.load_state_dict(new_state_dict)
-    elif model_type == "final_base":
-        weights = torch.load("/home/local/data/sophie/imagenet/output/base/continued/model_150.pth", map_location='cpu', weights_only=False)
+        # model = torchvision.models.resnet50(pretrained=True)
+        # weights = torch.load("/home/local/data/sophie/model_75.pth", map_location='cpu')
+        # new_state_dict = {}
+        # for k, v in weights['model'].items():
+        #     k = k.replace("module.", "")
+        #     new_state_dict[k] = v
+        # model.load_state_dict(new_state_dict)
+        weights = torch.load("/home/local/data/sophie/imagenet/output/FullGPU/grey/256/model_89.pth", map_location='cpu', weights_only=False)
         model = get_model("resnet50",weights=None,num_classes=1000)
         model.load_state_dict(weights["model"])
-    elif model_type == "final_grey":
-        weights = torch.load("/home/local/data/sophie/imagenet/output/grey/continued/model_151.pth", map_location='cpu', weights_only=False)
-        model = get_model("resnet50",weights=None,num_classes=1000)
-        model.load_state_dict(weights["model"])
-    elif model_type == "final_base99":
-        weights = torch.load("/home/local/data/sophie/imagenet/output/base/continued/model_99.pth", map_location='cpu', weights_only=False)
-        model = get_model("resnet50",weights=None,num_classes=1000)
-        model.load_state_dict(weights["model"])
-    elif model_type == "final_grey99":
-        weights = torch.load("/home/local/data/sophie/imagenet/output/grey/continued/model_99.pth", map_location='cpu', weights_only=False)
-        model = get_model("resnet50",weights=None,num_classes=1000)
-        model.load_state_dict(weights["model"])
-    elif model_type == "final_single":
-        weights = torch.load("/home/local/data/sophie/imagenet/output/single/model_99.pth", map_location='cpu', weights_only=False)
+    elif model_type == "single":
+        weights = torch.load("/home/local/data/sophie/imagenet/output/FullGPU/single/256/model_89.pth", map_location='cpu', weights_only=False)
         model = get_model("resnet50",weights=None,num_classes=1000)
         model = convert_to_single_channel(model)
         model.load_state_dict(weights["model"])
-    elif model_type == "final_single_last":
-        weights = torch.load("/home/local/data/sophie/imagenet/output/single/model_120.pth", map_location='cpu', weights_only=False)
+    elif model_type == "base65":
+        weights = torch.load("/home/local/data/sophie/imagenet/output/FullGPU/base/256/model_64.pth", map_location='cpu', weights_only=False)
+        model = get_model("resnet50",weights=None,num_classes=1000)
+        model.load_state_dict(weights["model"])
+    elif model_type == "single65":
+        weights = torch.load("/home/local/data/sophie/imagenet/output/FullGPU/single/256/model_64.pth", map_location='cpu', weights_only=False)
         model = get_model("resnet50",weights=None,num_classes=1000)
         model = convert_to_single_channel(model)
         model.load_state_dict(weights["model"])
-
+    elif model_type == "grey65":
+        weights = torch.load("/home/local/data/sophie/imagenet/output/FullGPU/grey/256/model_64.pth", map_location='cpu', weights_only=False)
+        model = get_model("resnet50",weights=None,num_classes=1000)
+        model.load_state_dict(weights["model"])
+    else:
+        raise ValueError("Invalid Model Choice! Choose from ['grey', 'base', 'single', 'grey65', 'base65', 'single65']")
+    # elif model_type == "grey89":
+    #     model = torchvision.models.resnet50(pretrained=True)
+    #     weights = torch.load("/home/local/data/sophie/model_89.pth", map_location='cpu')
+    #     new_state_dict = {}
+    #     for k, v in weights['model'].items():
+    #         k = k.replace("module.", "")
+    #         new_state_dict[k] = v
+    #     model.load_state_dict(new_state_dict)
+    # elif model_type == "final_base":
+    #     weights = torch.load("/home/local/data/sophie/imagenet/output/FullGPU/base/continued/model_150.pth", map_location='cpu', weights_only=False)
+    #     model = get_model("resnet50",weights=None,num_classes=1000)
+    #     model.load_state_dict(weights["model"])
+    # elif model_type == "final_grey":
+    #     weights = torch.load("/home/local/data/sophie/imagenet/output/FullGPU/grey/continued/model_151.pth", map_location='cpu', weights_only=False)
+    #     model = get_model("resnet50",weights=None,num_classes=1000)
+    #     model.load_state_dict(weights["model"])
+    # elif model_type == "final_base99":
+    #     weights = torch.load("/home/local/data/sophie/imagenet/output/FullGPU/base/continued/model_99.pth", map_location='cpu', weights_only=False)
+    #     model = get_model("resnet50",weights=None,num_classes=1000)
+    #     model.load_state_dict(weights["model"])
+    # elif model_type == "final_grey99":
+    #     weights = torch.load("/home/local/data/sophie/imagenet/output/FullGPU/grey/continued/model_99.pth", map_location='cpu', weights_only=False)
+    #     model = get_model("resnet50",weights=None,num_classes=1000)
+    #     model.load_state_dict(weights["model"])
+    # elif model_type == "final_single":
+    #     weights = torch.load("/home/local/data/sophie/imagenet/output/FullGPU/single/model_99.pth", map_location='cpu', weights_only=False)
+    #     model = get_model("resnet50",weights=None,num_classes=1000)
+    #     model = convert_to_single_channel(model)
+    #     model.load_state_dict(weights["model"])
+    # elif model_type == "final_single_last":
+    #     weights = torch.load("/home/local/data/sophie/imagenet/output/FullGPU/single/model_120.pth", map_location='cpu', weights_only=False)
+    #     model = get_model("resnet50",weights=None,num_classes=1000)
+    #     model = convert_to_single_channel(model)
+    #     model.load_state_dict(weights["model"])
+    
 
     # ensure results are consistent by disabling benchmarking
     benchmark = False
@@ -581,7 +616,7 @@ def main():
     args = parse_args()
     #stop crazy CPU core use
     torch.set_num_threads(args.num_workers)
-    # Initialize the model based on the type ('base' or 'grey')
+    # Initialize the model based on the type ('grey', 'base', 'single', 'grey65', 'base65', 'single65')
     model = initialize_model(args.model_type)
 
     if args.target_momentums is not None:
@@ -605,21 +640,26 @@ def main():
     }
 
     # Run the grid search
+    # best_params = grid_search(
+    #     crop_size=args.crop_size,
+    #     process=args.process,
+    #     train_set=args.train_set,
+    #     model=model,
+    #     model_name=args.model_type,
+    #     patience=args.patience,
+    #     param_grid=param_grid,
+    #     tuning_strategy=args.tuning_strategy,
+    #     num_epochs=args.epochs,
+    #     data_root=args.data_root,
+    #     num_workers=args.num_workers,
+    #     log_dr=args.log_dr,
+    #     single=True if "single" in args.model_type else False,
+    #     tgt_mom_epoch = args.target_momentums_epoch,
+    # )
     best_params = grid_search(
-        crop_size=args.crop_size,
-        process=args.process,
-        train_set=args.train_set,
         model=model,
-        model_name=args.model_type,
-        patience=args.patience,
         param_grid=param_grid,
-        tuning_strategy=args.tuning_strategy,
-        num_epochs=args.epochs,
-        data_root=args.data_root,
-        num_workers=args.num_workers,
-        log_dr=args.log_dr,
-        single=True if "final_single" in args.model_type else False,
-        tgt_mom_epoch = args.target_momentums_epoch,
+        args=args
     )
 
     print(f"Best parameters found: {best_params}")

@@ -383,9 +383,22 @@ def run_model_training(model, bsz, lr, momentum, seed, pos_class_weight, target_
             "epoch": epoch,
             "args": args,
         }
+        out_model_path = os.path.join(
+            args.output_dir,
+            args.process,
+            args.tuning_strategy,  # Directory for the tuning strategy
+            args.model_type,  # Subdirectory for the model type
+        )
+    
+        out_model_name = f"model_lr_{lr}_bsz_{bsz}_mom_{momentum}_seed_{seed}_pos-weight_{pos_class_weight}.pth"
+        if target_mom is not None:
+            out_model_path = os.path.join(out_model_path,f"linmom_{target_mom}_{target_mom_rate}")
+    
+        if not os.path.exists(out_model_path):
+            os.makedirs(out_model_path)
 
-        torch.save(checkpoint, os.path.join(args.output_dir, f"model_{epoch}.pth"))
-        torch.save(checkpoint, os.path.join(args.output_dir, "checkpoint.pth"))
+        torch.save(checkpoint, os.path.join(out_model_path, f"model_{epoch}.pth"))
+        torch.save(checkpoint, os.path.join(out_model_path, "checkpoint.pth"))
         # Evaluate on all test sets
         for test_name, loader in zip(['test', 'ext1', 'ext2', 'ext3'], [testloader, ext1loader, ext2loader, ext3loader]):
             # precision, recall, f1, auc = evaluate_model(model, loader, device)
@@ -418,25 +431,26 @@ def run_model_training(model, bsz, lr, momentum, seed, pos_class_weight, target_
 
     writer.close()
 
-    final_model = {
-        "model": model.state_dict(),
-        "optimizer": optimizer.state_dict(),
-        "epoch": epoch,
-    }
-    out_model_path = os.path.join(
-        args.output_dir,
-        tuning_strategy,  # Directory for the tuning strategy
-        args.model_type,  # Subdirectory for the model type
-    )
+    # final_model = {
+    #     "model": model.state_dict(),
+    #     "optimizer": optimizer.state_dict(),
+    #     "epoch": epoch,
+    # }
+    # out_model_path = os.path.join(
+    #     args.output_dir,
+    #     args.process,
+    #     args.tuning_strategy,  # Directory for the tuning strategy
+    #     args.model_type,  # Subdirectory for the model type
+    # )
 
-    out_model_name = f"model_lr_{lr}_bsz_{bsz}_mom_{momentum}_seed_{seed}_pos-weight_{pos_class_weight}.pth"
-    if target_mom is not None:
-        out_model_path = os.path.join(out_model_path,f"linmom_{target_mom}_{target_mom_rate}")
+    # out_model_name = f"model_lr_{lr}_bsz_{bsz}_mom_{momentum}_seed_{seed}_pos-weight_{pos_class_weight}.pth"
+    # if target_mom is not None:
+    #     out_model_path = os.path.join(out_model_path,f"linmom_{target_mom}_{target_mom_rate}")
 
-    if not os.path.exists(out_model_path):
-        os.makedirs(out_model_path)
+    # if not os.path.exists(out_model_path):
+    #     os.makedirs(out_model_path)
 
-    torch.save(final_model, os.path.join(out_model_path,out_model_name))
+    # torch.save(final_model, os.path.join(out_model_path,out_model_name))
     return metrics_dict
 
 # def grid_search(crop_size, process, train_set, model, model_name, patience, param_grid, tuning_strategy, num_epochs=10, data_root="/content/",num_workers=8,log_dr="runs",single=False,tgt_mom_epoch=None):

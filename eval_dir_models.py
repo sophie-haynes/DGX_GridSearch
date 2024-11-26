@@ -145,6 +145,8 @@ def main():
             model_path = os.path.join(args.model_dir,model_name)
 
             model_object = torch.load(model_path, map_location='cpu', weights_only=False)
+
+            epoch = model_object['epoch']
             
             # copy pre-loaded model
             this_model = copy.deepcopy(model)

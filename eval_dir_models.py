@@ -2,6 +2,7 @@ import argparse, copy, os
 import torch, torchvision
 from torcheval.metrics import BinaryAUROC, BinaryF1Score, BinaryPrecision, BinaryRecall
 from torch.utils.tensorboard import SummaryWriter
+from torchvision.models import get_model
 from torchvision.transforms import v2
 
 
@@ -26,7 +27,7 @@ def convert_to_single_channel(model):
     # Identify the first convolutional layer
     conv1 = None
     for name, layer in model.named_modules():
-        if isinstance(layer, nn.Conv2d):
+        if isinstance(layer, torch.nn.Conv2d):
             conv1 = layer
             conv1_name = name
             break
@@ -35,7 +36,7 @@ def convert_to_single_channel(model):
         raise ValueError("The model does not have a Conv2D layer.")
     
     # Create a new convolutional layer with the same parameters except for the input channels
-    new_conv1 = nn.Conv2d(
+    new_conv1 = torch.nn.Conv2d(
         in_channels=1,  # Change input channels to 1
         out_channels=conv1.out_channels,
         kernel_size=conv1.kernel_size,
@@ -106,10 +107,11 @@ def main():
 
     writer = SummaryWriter(log_dir=args.log_dir)
 
-    model = torchvision.models.resnet50(pretrained=True)
+    # model = torchvision.models.resnet50(pretrained=True)
+    model = model = get_model("resnet50",weights=None,num_classes=2)
 
     # grab checkpoint for environmental configs
-    env_conf = torch.load(os.path.join(args.model_dir, "checkpoint.pth"), map_location='cpu')['args']
+    env_conf = torch.load(os.path.join(args.model_dir, "checkpoint.pth"), map_location='cpu', weights_only=False)['args']
     # data =============================================
     ext_names = ['cxr14', 'padchest', 'openi', 'jsrt']
     ext_names.remove(env_conf.train_set)
@@ -137,11 +139,12 @@ def main():
     for model_name in os.listdir(args.model_dir):
 
         # check is a .pth file
-        if model_name[0][-4:] == ".pth":
+        if model_name[-4:] == ".pth" and model_name[:-4] != "checkpoint":
+            print(f"Testing: {model_name}")
 
             model_path = os.path.join(args.model_dir,model_name)
 
-            model_object = torch.load(model_path, map_location='cpu')
+            model_object = torch.load(model_path, map_location='cpu', weights_only=False)
             
             # copy pre-loaded model
             this_model = copy.deepcopy(model)
@@ -158,7 +161,7 @@ def main():
             this_model.eval()
 
             # iterate over datasets
-            for test_name, loader in zip(['test', 'ext1', 'ext2', 'ext3'], [testloader, ext1loader, ext2loader, ext3loader]):
+            for test_name, loader in zip(['test', 'ext1', 'ext2', 'ext3'], [internal_test_dataloader, ext1_test_dataloader, ext2_test_dataloader, ext3_test_dataloader]):
                 precision, recall, f1, auc = evaluate_gpu_metrics(this_model, loader, device)
                 print(f'{test_name} - Epoch {epoch + 1}: Precision={precision:.3f}, Recall={recall:.3f}, F1={f1:.3f}, AUC={auc:.3f}')
                 # Log these metrics to TensorBoard
@@ -166,6 +169,8 @@ def main():
                 writer.add_scalar(f'Recall/{test_name}', recall, epoch + 1)
                 writer.add_scalar(f'F1/{test_name}', f1, epoch + 1)
                 writer.add_scalar(f'AUC/{test_name}', auc, epoch + 1)
+        else:
+            print(f"Skipping: {model_name}...")
 
 if __name__ == "__main__":
     main()

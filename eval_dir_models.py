@@ -106,16 +106,25 @@ def main():
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-    if not os.path.exists(args.log_dir):
-        os.makedirs(args.log_dir)
-
-    writer = SummaryWriter(log_dir=args.log_dir)
-
     # model = torchvision.models.resnet50(pretrained=True)
     model = model = get_model("resnet50",weights=None,num_classes=2)
 
     # grab checkpoint for environmental configs
     env_conf = torch.load(os.path.join(args.model_dir, "checkpoint.pth"), map_location='cpu', weights_only=False)['args']
+
+    log_dir = os.path.join(
+        args.log_dir,
+        f"{env_conf.crop_size}crop",
+        env_conf.process,
+        env_conf.tuning_strategy,  # Directory for the tuning strategy
+        env_conf.model_type,  # Subdirectory for the model type
+        f"lr_{env_conf.learning_rates[0]}_bsz_{env_conf.batch_sizes[0]}_mom_{env_conf.momentums[0]}_seed_{env_conf.seed[0]}_posWeight_{env_conf.pos_class_weights[0]}" 
+        )
+
+    if not os.path.exists(log_dir):
+        os.makedirs(log_dir, exist_ok = True)
+
+    writer = SummaryWriter(log_dir=log_dir)
     # data =============================================
     ext_names = ['cxr14', 'padchest', 'openi', 'jsrt']
     ext_names.remove(env_conf.train_set)

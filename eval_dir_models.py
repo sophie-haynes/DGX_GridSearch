@@ -1,4 +1,4 @@
-import argparse, copy, os
+import argparse, copy, os, re
 import torch, torchvision
 from torcheval.metrics import BinaryAUROC, BinaryF1Score, BinaryPrecision, BinaryRecall
 from torch.utils.tensorboard import SummaryWriter
@@ -13,6 +13,10 @@ arch_seg_dict = {
     'jsrt': [[139.9666], [72.4017]],
     'padchest': [[129.5006], [72.6308]],
 }
+def sorted_alphanumeric(data):
+    convert = lambda text: int(text) if text.isdigit() else text.lower()
+    alphanum_key = lambda key: [ convert(c) for c in re.split('([0-9]+)', key) ] 
+    return sorted(data, key=alphanum_key)
 
 def convert_to_single_channel(model):
     """
@@ -136,7 +140,7 @@ def main():
     ext2_test_dataloader = torch.utils.data.DataLoader(ext2_test_dataset, batch_size=16, shuffle=False, num_workers=4, pin_memory=True)
     ext3_test_dataloader = torch.utils.data.DataLoader(ext3_test_dataset, batch_size=16, shuffle=False, num_workers=4, pin_memory=True)
 
-    for model_name in os.listdir(args.model_dir):
+    for model_name in sorted_alphanumeric(os.listdir(args.model_dir)):
 
         # check is a .pth file
         if model_name[-4:] == ".pth" and model_name[:-4] != "checkpoint":

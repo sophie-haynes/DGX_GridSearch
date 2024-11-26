@@ -92,20 +92,19 @@ def parse_args():
     parser.add_argument("--model_dir", type=str, required=True, help="Path to models directory")
     parser.add_argument("--data_dir", type=str, default="/home/local/data/sophie/node21_num_label_resample_all", help="Path to data directory")
     parser.add_argument("--log_dir", type=str, required=True, help="Tensorboard logging folder")
-    # sophie/transfer/arch_seg/full_network/base/checkpoint.pth
 
     return parser.parse_args()
 
 def main():
-	
-	args = parse_args()
+    
+    args = parse_args()
 
-	device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-	if not os.path.exists(args.log_dir):
-		os.makedirs(args.log_dir)
+    if not os.path.exists(args.log_dir):
+        os.makedirs(args.log_dir)
 
-	writer = SummaryWriter(log_dir=args.log_dir)
+    writer = SummaryWriter(log_dir=args.log_dir)
 
     model = torchvision.models.resnet50(pretrained=True)
 
@@ -120,9 +119,9 @@ def main():
     normalise = v2.Normalize(mean=mean, std=std)
 
     test_transform = get_cxr_eval_transforms(
-    	crop_size =  env_conf['args'].crop_size, 
-    	normalise = normalise, 
-    	single = env_conf['args'].model_type == "single")
+        crop_size =  env_conf.crop_size, 
+        normalise = normalise, 
+        single = env_conf.model_type == "single")
 
     # sophie/node21_num_label_resample_all/cxr14/arch_seg/flat_std_1024/test/0_normal
     internal_test_dataset = torchvision.datasets.ImageFolder(root=os.path.join(args.data_dir,env_conf.train_set,"arch_seg/flat_std_1024/test"), transform=v2.Compose(test_transform))
@@ -131,42 +130,42 @@ def main():
     ext3_test_dataset = torchvision.datasets.ImageFolder(root=os.path.join(args.data_dir,ext_names[2],"arch_seg/flat_std_1024/test"), transform=v2.Compose(test_transform))
 
     internal_test_dataloader = torch.utils.data.DataLoader(internal_test_dataset, batch_size=16, shuffle=False, num_workers=4, pin_memory=True)
-	ext1_test_dataloader = torch.utils.data.DataLoader(ext1_test_dataset, batch_size=16, shuffle=False, num_workers=4, pin_memory=True)
-	ext2_test_dataloader = torch.utils.data.DataLoader(ext2_test_dataset, batch_size=16, shuffle=False, num_workers=4, pin_memory=True)
-	ext3_test_dataloader = torch.utils.data.DataLoader(ext3_test_dataset, batch_size=16, shuffle=False, num_workers=4, pin_memory=True)
+    ext1_test_dataloader = torch.utils.data.DataLoader(ext1_test_dataset, batch_size=16, shuffle=False, num_workers=4, pin_memory=True)
+    ext2_test_dataloader = torch.utils.data.DataLoader(ext2_test_dataset, batch_size=16, shuffle=False, num_workers=4, pin_memory=True)
+    ext3_test_dataloader = torch.utils.data.DataLoader(ext3_test_dataset, batch_size=16, shuffle=False, num_workers=4, pin_memory=True)
 
     for model_name in os.listdir(args.model_dir):
 
-    	# check is a .pth file
-    	if model_name[0][-4:] == ".pth":
+        # check is a .pth file
+        if model_name[0][-4:] == ".pth":
 
-	    	model_path = os.path.join(args.model_dir,model_name)
+            model_path = os.path.join(args.model_dir,model_name)
 
-			model_object = torch.load(model_path, map_location='cpu')
-			
-			# copy pre-loaded model
-			this_model = copy.deepcopy(model)
+            model_object = torch.load(model_path, map_location='cpu')
+            
+            # copy pre-loaded model
+            this_model = copy.deepcopy(model)
 
-			# check if single channel model
-			if model_object['args'].model_type == "single":
+            # check if single channel model
+            if model_object['args'].model_type == "single":
 
-				this_model = convert_to_single_channel(this_model)
+                this_model = convert_to_single_channel(this_model)
 
-			# load model
-	        this_model.load_state_dict(model_object["model"])
-	        
-	        this_model.to(device)
-	        this_model.eval()
+            # load model
+            this_model.load_state_dict(model_object["model"])
+            
+            this_model.to(device)
+            this_model.eval()
 
-	        # iterate over datasets
-	        for test_name, loader in zip(['test', 'ext1', 'ext2', 'ext3'], [testloader, ext1loader, ext2loader, ext3loader]):
-	        	precision, recall, f1, auc = evaluate_gpu_metrics(this_model, loader, device)
-	        	print(f'{test_name} - Epoch {epoch + 1}: Precision={precision:.3f}, Recall={recall:.3f}, F1={f1:.3f}, AUC={auc:.3f}')
-	        	# Log these metrics to TensorBoard
-	            writer.add_scalar(f'Precision/{test_name}', precision, epoch + 1)
-	            writer.add_scalar(f'Recall/{test_name}', recall, epoch + 1)
-	            writer.add_scalar(f'F1/{test_name}', f1, epoch + 1)
-	            writer.add_scalar(f'AUC/{test_name}', auc, epoch + 1)
+            # iterate over datasets
+            for test_name, loader in zip(['test', 'ext1', 'ext2', 'ext3'], [testloader, ext1loader, ext2loader, ext3loader]):
+                precision, recall, f1, auc = evaluate_gpu_metrics(this_model, loader, device)
+                print(f'{test_name} - Epoch {epoch + 1}: Precision={precision:.3f}, Recall={recall:.3f}, F1={f1:.3f}, AUC={auc:.3f}')
+                # Log these metrics to TensorBoard
+                writer.add_scalar(f'Precision/{test_name}', precision, epoch + 1)
+                writer.add_scalar(f'Recall/{test_name}', recall, epoch + 1)
+                writer.add_scalar(f'F1/{test_name}', f1, epoch + 1)
+                writer.add_scalar(f'AUC/{test_name}', auc, epoch + 1)
 
 if __name__ == "__main__":
     main()

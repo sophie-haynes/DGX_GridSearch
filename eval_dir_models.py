@@ -127,7 +127,7 @@ def main():
     test_transform = get_cxr_eval_transforms(
         crop_size =  env_conf.crop_size, 
         normalise = normalise, 
-        single = env_conf.model_type == "single")
+        single = "single" in env_conf.model_type )
 
     # sophie/node21_num_label_resample_all/cxr14/arch_seg/flat_std_1024/test/0_normal
     internal_test_dataset = torchvision.datasets.ImageFolder(root=os.path.join(args.data_dir,env_conf.train_set,"arch_seg/flat_std_1024/test"), transform=v2.Compose(test_transform))
@@ -156,7 +156,7 @@ def main():
             this_model = copy.deepcopy(model)
 
             # check if single channel model
-            if model_object['args'].model_type == "single":
+            if "single" in  model_object['args'].model_type:
 
                 this_model = convert_to_single_channel(this_model)
 

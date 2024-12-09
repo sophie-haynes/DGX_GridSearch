@@ -422,8 +422,8 @@ def run_model_training(model, bsz, lr, momentum, seed, pos_class_weight, target_
         if not os.path.exists(out_model_path):
             os.makedirs(out_model_path)
 
-        torch.save(checkpoint, os.path.join(out_model_path, f"model_{epoch}.pth"))
-        torch.save(checkpoint, os.path.join(out_model_path, "checkpoint.pth"))
+        torch.save(checkpoint, os.path.join(out_model_path,out_model_name, f"model_{epoch}.pth"))
+        torch.save(checkpoint, os.path.join(out_model_path,out_model_name, "checkpoint.pth"))
         # Evaluate on all test sets
         for test_name, loader in zip(test_name_list, test_loader_list):
             # precision, recall, f1, auc = evaluate_model(model, loader, device)

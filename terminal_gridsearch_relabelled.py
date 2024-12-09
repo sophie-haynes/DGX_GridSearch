@@ -418,9 +418,9 @@ def run_model_training(model, bsz, lr, momentum, seed, pos_class_weight, target_
         out_model_name = f"model_lr_{lr}_bsz_{bsz}_mom_{momentum}_seed_{seed}_pos-weight_{pos_class_weight}.pth"
         if target_mom is not None:
             out_model_path = os.path.join(out_model_path,f"linmom_{target_mom}_{target_mom_rate}")
-    
-        if not os.path.exists(out_model_path):
-            os.makedirs(out_model_path)
+
+        if not os.path.exists(os.path.join(out_model_path,out_model_name)):
+            os.makedirs(os.path.join(out_model_path,out_model_name))
 
         torch.save(checkpoint, os.path.join(out_model_path,out_model_name, f"model_{epoch}.pth"))
         torch.save(checkpoint, os.path.join(out_model_path,out_model_name, "checkpoint.pth"))

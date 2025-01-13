@@ -250,6 +250,8 @@ def run_model_training(model, bsz, lr, momentum, seed, pos_class_weight, target_
             args.model_type,  # Subdirectory for the model type
             f"lr_{lr}_bsz_{bsz}_mom_{momentum}_seed_{seed}_posWeight_{pos_class_weight}"  # Subdirectory for hyperparameter configuration
         )
+    if args.step_decay_epochs is not None:
+        log_dir += f"stepDecay_{args.step_decay_epochs}_decayRate_{args.step_decay_gamma}"
 
     # Ensure the directory structure is created properly
     os.makedirs(log_dir, exist_ok=True)
@@ -292,11 +294,17 @@ def run_model_training(model, bsz, lr, momentum, seed, pos_class_weight, target_
 
     # Load datasets
     if args.train_set != "padcxr14":
-        train_path = os.path.join(args.data_root, args.train_set, args.process, std_dir, "train")
-        test_path = os.path.join(args.data_root, args.train_set, args.process, std_dir, "test")
-        ext1_path = os.path.join(args.data_root, ext_names[0], args.process, std_dir, "test")
-        ext2_path = os.path.join(args.data_root, ext_names[1], args.process, std_dir, "test")
-        ext3_path = os.path.join(args.data_root, ext_names[2], args.process, std_dir, "test")
+        # train_path = os.path.join(args.data_root, args.train_set, args.process, std_dir, "train")
+        # test_path = os.path.join(args.data_root, args.train_set, args.process, std_dir, "test")
+        # ext1_path = os.path.join(args.data_root, ext_names[0], args.process, std_dir, "test")
+        # ext2_path = os.path.join(args.data_root, ext_names[1], args.process, std_dir, "test")
+        # ext3_path = os.path.join(args.data_root, ext_names[2], args.process, std_dir, "test")
+        # COMMENTED OUT OLD METHOD OF DIR - REMOVED THE STD PROCESS + ARCH SUBFOLDER
+        train_path = os.path.join(args.data_root, args.train_set, "train")
+        test_path = os.path.join(args.data_root, args.train_set, "test")
+        ext1_path = os.path.join(args.data_root, ext_names[0], "test")
+        ext2_path = os.path.join(args.data_root, ext_names[1],  "test")
+        ext3_path = os.path.join(args.data_root, ext_names[2], "test")
 
         trainset = torchvision.datasets.ImageFolder(root=train_path, transform= v2.Compose(train_transform))
         testset = torchvision.datasets.ImageFolder(root=test_path, transform=v2.Compose(test_transform))
@@ -337,6 +345,12 @@ def run_model_training(model, bsz, lr, momentum, seed, pos_class_weight, target_
     criterion = torch.nn.CrossEntropyLoss(weight=class_weighting)
     optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=momentum)
 
+    if args.step_decay_epochs is not None:
+        lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=args.step_decay_epochs, gamma=args.step_decay_gamma)
+    else:
+        lr_scheduler = None
+    
+
     model.to(device)
 
     best_loss = float('inf')
@@ -348,10 +362,10 @@ def run_model_training(model, bsz, lr, momentum, seed, pos_class_weight, target_
     metrics_dict = {
         "epoch": [],
         "train_loss": [],
-        "test{}_auc".format("1" if args.train_set == "padcxr14" else ""): [],
-        "test{}_precision".format("1" if args.train_set == "padcxr14" else ""): [],
-        "test{}_recall".format("1" if args.train_set == "padcxr14" else ""): [],
-        "test{}_f1".format("1" if args.train_set == "padcxr14" else ""): [],
+        "test{}_auc".format("1"): [],
+        "test{}_precision".format("1"): [],
+        "test{}_recall".format("1"): [],
+        "test{}_f1".format("1"): [],
         "{}_auc".format("test2" if args.train_set == "padcxr14" else "ext1"): [],
         "{}_precision".format("test2" if args.train_set == "padcxr14" else "ext1"): [],
         "{}_recall".format("test2" if args.train_set == "padcxr14" else "ext1"): [],
@@ -418,6 +432,9 @@ def run_model_training(model, bsz, lr, momentum, seed, pos_class_weight, target_
         out_model_name = f"model_lr_{lr}_bsz_{bsz}_mom_{momentum}_seed_{seed}_pos-weight_{pos_class_weight}.pth"
         if target_mom is not None:
             out_model_path = os.path.join(out_model_path,f"linmom_{target_mom}_{target_mom_rate}")
+        if lr_scheduler is not None:
+            out_model_path = os.path.join(out_model_path,
+                                    f"lr_step_decay_{args.step_decay_epochs}_epochs_{args.step_decay_gamma}_rate")
 
         if not os.path.exists(os.path.join(out_model_path,out_model_name)):
             os.makedirs(os.path.join(out_model_path,out_model_name))
@@ -453,6 +470,10 @@ def run_model_training(model, bsz, lr, momentum, seed, pos_class_weight, target_
         if epochs_no_improve >= args.patience:
             print(f"Early stopping after {epochs_no_improve} epochs with no improvement.")
             break
+
+        # LR decay step 
+        if lr_scheduler is not None:
+            lr_scheduler.step()
 
     writer.close()
 
@@ -517,7 +538,7 @@ def grid_search(model, param_grid, args):
         if args.train_set == "padcxr14":
             avg_auc = (metrics['test1_auc'][-1] + metrics['test2_auc'][-1] + metrics['ext2_auc'][-1] + metrics['ext3_auc'][-1]) / 4
         else:
-            avg_auc = (metrics['test_auc'][-1] + metrics['ext1_auc'][-1] + metrics['ext2_auc'][-1] + metrics['ext3_auc'][-1]) / 4
+            avg_auc = (metrics['test1_auc'][-1] + metrics['ext1_auc'][-1] + metrics['ext2_auc'][-1] + metrics['ext3_auc'][-1]) / 4
 
 
         if avg_auc > best_score:
@@ -566,6 +587,10 @@ def parse_args():
 
     # Class weights
     parser.add_argument("--pos_class_weights", nargs='+', type=float, default=[1.0], help="List of weights to eval for positive class. Negative weight left as 1.0")
+
+    # Step Decay for final fine tunings
+    parser.add_argument("--step_decay_epochs", type=int, help="Learning rate decay after number of these epochs")
+    parser.add_argument("--step_decay_gamma", type=float, default=0.1, help="Learning rate decay amount")
 
     return parser.parse_args()
 

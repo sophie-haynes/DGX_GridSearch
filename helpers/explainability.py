@@ -7,7 +7,7 @@ from matplotlib.patches import Rectangle
 
 import numpy as np
 
-from visualise import norm_and_transpose_input_tensor
+from helpers.visualise import norm_and_transpose_input_tensor
 
 BLUE_CMAP = LinearSegmentedColormap.from_list('custom blue',
                                                  [(0, '#ffffff'),

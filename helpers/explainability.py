@@ -50,19 +50,18 @@ def get_occ_int_grad_for_single_tensor(
 
 
 def viz_intgrad_with_bbox(img_attr, input_img_tensor, bbox, title,
-	sign='positive', method='blended_heat_map', use_blue=False,
-	plt_fig_axis=None):
-	"""
-	Helper function to generate CXR plot with int grad attributions and BBox.
+    sign='positive', method='blended_heat_map', use_blue=False,
+    plt_fig_axis=None):
+    """
+    Helper function to generate CXR plot with int grad attributions and BBox.
 
-	Args:
-	- img_attr (torch.float Tensor): Torch Tensor of attribution.
-	- input_img_tensor (torch.float Tensor): The input image
+    Args:
+    - img_attr (torch.float Tensor): Torch Tensor of attribution.
+    - input_img_tensor (torch.float Tensor): The input image
 
-	"""
+    """
     if use_blue or sign=="all":
         curr_cmap = BLUE_CMAP
-        
     elif sign=="positive":
         curr_cmap = GREEN_CMAP
     else:

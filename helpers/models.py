@@ -5,7 +5,8 @@ from torch import load as tload
 from torch import device
 
 def get_device():
-    return device("cuda" if torch.cuda.is_available() else "cpu")
+    from torch import cuda
+    return device("cuda" if cuda.is_available() else "cpu")
 
 def convert_to_single_channel(model):
     """
@@ -57,8 +58,8 @@ def load_trained_resnet50(model_path, single=False, num_classes=2,device=None):
     num_ftrs = model.fc.in_features
     # add linear classifer
     model.fc = Linear(num_ftrs, num_classes)
-    # load model
-    model.load_state_dict(tload(model_path)['model'])
+    # load model to CPU
+    model.load_state_dict(tload(model_path, map_location="cpu")['model'])
     # set to eval mode
     model = model.eval()
     if not device:

@@ -1,5 +1,5 @@
 from torchvision.transforms import v2
-from torch import float32
+from torch import float32 as tfloat32
 
 # crop dictionary of calculated dataset means and std devs
 CROP_DICT = {
@@ -39,10 +39,10 @@ def get_cxr_eval_transforms(crop_size, normalise):
     cxr_transform_list = [
         v2.ToImage(),
         v2.Resize(size=crop_size, antialias=True),
-        v2.ToDtype(float32, scale=False),
+        v2.ToDtype(tfloat32, scale=False),
         normalise
     ]
-    return cxr_transform_list
+    return v2.Compose(cxr_transform_list)
 
 
 def get_cxr_single_eval_transforms(crop_size, normalise):
@@ -55,10 +55,10 @@ def get_cxr_single_eval_transforms(crop_size, normalise):
         v2.ToImage(),
         v2.Grayscale(1),
         v2.Resize(size=crop_size, antialias=True),
-        v2.ToDtype(float32, scale=False),
+        v2.ToDtype(tfloat32, scale=False),
         normalise,
     ]
-    return cxr_transform_list
+    return v2.Compose(cxr_transform_list)
 
 
 def get_cxr_dataset_normalisation(dataset, process):
@@ -92,3 +92,4 @@ def get_cxr_dataset_normalisation(dataset, process):
                 if process.lower() == "arch" \
                 else v2.Normalize(LUNG_SEG_DICT[dataset.lower()][0],
                                   LUNG_SEG_DICT[dataset.lower()][1])
+

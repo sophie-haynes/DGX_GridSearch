@@ -1,4 +1,5 @@
 from torchvision.transforms import v2
+from torch import float32
 
 # crop dictionary of calculated dataset means and std devs
 CROP_DICT = {
@@ -38,7 +39,7 @@ def get_cxr_eval_transforms(crop_size, normalise):
     cxr_transform_list = [
         v2.ToImage(),
         v2.Resize(size=crop_size, antialias=True),
-        v2.ToDtype(torch.float32, scale=False),
+        v2.ToDtype(float32, scale=False),
         normalise
     ]
     return cxr_transform_list
@@ -54,7 +55,7 @@ def get_cxr_single_eval_transforms(crop_size, normalise):
         v2.ToImage(),
         v2.Grayscale(1),
         v2.Resize(size=crop_size, antialias=True),
-        v2.ToDtype(torch.float32, scale=False),
+        v2.ToDtype(float32, scale=False),
         normalise,
     ]
     return cxr_transform_list

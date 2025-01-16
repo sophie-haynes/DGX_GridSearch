@@ -82,12 +82,12 @@ def get_cxr_dataset_normalisation(dataset, process):
                 {dataset}! Please choose from (cxr14, padchest, \
                 openi, jsrt).")
         else:
-            return v2.Normalize(CROP_DICT[process.lower()][0],
-                                CROP_DICT[process.lower()][1]) \
+            return v2.Normalize(CROP_DICT[dataset.lower()][0],
+                                CROP_DICT[dataset.lower()][1]) \
                 if process.lower() == "crop" \
                 else \
-                v2.Normalize(ARCH_SEG_DICT[process.lower()][0],
-                             ARCH_SEG_DICT[process.lower()][1]) \
+                v2.Normalize(ARCH_SEG_DICT[dataset.lower()][0],
+                             ARCH_SEG_DICT[dataset.lower()][1]) \
                 if process.lower() == "arch" \
-                else v2.Normalize(LUNG_SEG_DICT[process.lower()][0],
-                                  LUNG_SEG_DICT[process.lower()][1])
+                else v2.Normalize(LUNG_SEG_DICT[dataset.lower()][0],
+                                  LUNG_SEG_DICT[dataset.lower()][1])

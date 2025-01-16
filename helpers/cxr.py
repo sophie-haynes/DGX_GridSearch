@@ -66,10 +66,8 @@ def get_cxr_dataset_normalisation(dataset, process):
     in dataset name and the image processing method used.
 
     Args:
-    - dataset (str): Name of CXR dataset. Expects ("cxr14", 
-    "padchest", "openi", "jsrt").
-    - process (str): Name of CXR processing applied. Expects 
-    ("crop", "arch", "lung").
+    - dataset (str): Name of CXR dataset. Expects ("cxr14", "padchest", "openi", "jsrt").
+    - process (str): Name of CXR processing applied. Expects ("crop", "arch", "lung").
 
     Returns:
     - torchvision.transform.V2 normalize method.
@@ -79,7 +77,7 @@ def get_cxr_dataset_normalisation(dataset, process):
         raise ValueError(f"Unexpected CXR processing type: \
             {process}! Please choose from (crop, arch, lung).")
     else:
-        if dataset.lower() not in ("crop", "arch", "lung"):
+        if dataset.lower() not in ("cxr14", "padchest", "openi", "jsrt"):
             raise ValueError(f"Unexpected CXR dataset type: \
                 {dataset}! Please choose from (cxr14, padchest, \
                 openi, jsrt).")

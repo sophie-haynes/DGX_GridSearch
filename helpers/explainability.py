@@ -4,7 +4,7 @@ from captum.attr import visualization as viz
 from matplotlib.axes import Axes
 from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.patches import Rectangle
-
+from matplotlib.pyplot import figure
 import numpy as np
 
 from helpers.visualise import norm_and_transpose_input_tensor
@@ -36,17 +36,22 @@ def make_occ_int_grad_model(model):
 	return occlusion_model
 
 
-def get_occ_int_grad_for_single_tensor(
-	occlusion_model, input_tensor, pred_label_idx):
-	"""Generate occlusion int. grad. for an input tensor."""
-
-	attributions_occ = occlusion_model.attribute(
-		input_tensor.unsqueeze(0),
-		target=pred_label_idx,
-		strides=(3, 8, 8),
-		sliding_window_shapes=(3, 15, 15),
-		baselines=0)
-	return attributions_occ
+def get_occ_int_grad_for_single_tensor(model, input_tensor, pred_label_idx):
+    if str(type(model)) == \
+    "<class 'captum.attr._core.integrated_gradients.IntegratedGradients'>":
+        attrs = model.attribute(
+            input_tensor.unsqueeze(0), 
+            target=pred_label_idx, 
+            n_steps=40)
+    else:
+        attrs = model.attribute(
+            input_tensor.unsqueeze(0), 
+            target=pred_label_idx, 
+            strides=(3, 8, 8), 
+            sliding_window_shapes=(3, 15, 15), 
+            baselines=0)
+    
+    return attrs
 
 
 def viz_intgrad_with_bbox(img_attr, input_img_tensor, bbox, title,
@@ -108,7 +113,7 @@ def plot_ig_and_mask(attrs, img_tensor, bbox=None,
                      signs = ['positive','positive','negative','positive'], 
                      titles = ["Integrated Gradients", "Positive Attribution (Masked)", "Negative Attribution (Masked)", "Positive Mask"], 
                      figsize = (18, 6)):
-    plt_fig = plt.figure(figsize=figsize)
+    plt_fig = figure(figsize=figsize)
     plt_axis_np = plt_fig.subplots(1, len(attrs), squeeze=True)
     for i in range(0,len(attrs)):
         if bbox:
@@ -121,7 +126,7 @@ def plot_ig_and_mask(attrs, img_tensor, bbox=None,
                 sign = signs[i],
                 plt_fig_axis=(plt_fig, plt_axis_np[i]))
         else:
-            viz_intgrad_with_bbox(
+            viz_intgrad(
 		        img_attr=attrs[i], 
 		        input_img_tensor= img_tensor, 
 		        title = titles[i],

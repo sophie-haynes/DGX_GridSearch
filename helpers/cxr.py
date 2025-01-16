@@ -84,10 +84,10 @@ def get_cxr_dataset_normalisation(dataset, process):
         else:
             return v2.Normalize(CROP_DICT[process.lower()][0],
                                 CROP_DICT[process.lower()][1]) \
-                if proc.lower() == "crop" \
+                if process.lower() == "crop" \
                 else \
                 v2.Normalize(ARCH_SEG_DICT[process.lower()][0],
                              ARCH_SEG_DICT[process.lower()][1]) \
-                if proc.lower() == "arch" \
+                if process.lower() == "arch" \
                 else v2.Normalize(LUNG_SEG_DICT[process.lower()][0],
                                   LUNG_SEG_DICT[process.lower()][1])

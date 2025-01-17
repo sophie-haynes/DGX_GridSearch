@@ -56,7 +56,7 @@ def get_occ_int_grad_for_single_tensor(model, input_tensor, pred_label_idx, sing
 
 def viz_intgrad_with_bbox(img_attr, input_img_tensor, bbox, title,
     sign='positive', method='blended_heat_map', use_blue=False,
-    plt_fig_axis=None):
+    plt_fig_axis=None, single=False):
     """
     Helper function to generate CXR plot with int grad attributions and BBox.
 
@@ -72,7 +72,7 @@ def viz_intgrad_with_bbox(img_attr, input_img_tensor, bbox, title,
     else:
         curr_cmap = ORED_CMAP
     
-    _ = viz.visualize_image_attr(attr=np.transpose(img_attr.squeeze().cpu().detach().numpy(), (1,2,0)),
+    _ = viz.visualize_image_attr(attr=np.transpose(img_attr.cpu().detach().numpy(), (1,2,0)) if single else np.transpose(img_attr.squeeze().cpu().detach().numpy(), (1,2,0)),
                             original_image=norm_and_transpose_input_tensor(input_img_tensor),
                              method=method,
                              cmap=curr_cmap,
@@ -87,7 +87,7 @@ def viz_intgrad_with_bbox(img_attr, input_img_tensor, bbox, title,
 
 
 def viz_intgrad(img_attr, input_img_tensor, title, sign='positive', method='blended_heat_map',
-	use_blue=False, plt_fig_axis=None):
+	use_blue=False, plt_fig_axis=None, single=False):
     """Helper function to generate CXR plot with int grad attributions."""
     if use_blue or sign=="all":
         curr_cmap = BLUE_CMAP
@@ -96,7 +96,7 @@ def viz_intgrad(img_attr, input_img_tensor, title, sign='positive', method='blen
     else:
         curr_cmap = ORED_CMAP
     
-    _ = viz.visualize_image_attr(attr=np.transpose(img_attr.squeeze().cpu().detach().numpy(), (1,2,0)),
+    _ = viz.visualize_image_attr(attr=np.transpose(img_attr.cpu().detach().numpy(), (1,2,0)) if single else np.transpose(img_attr.squeeze().cpu().detach().numpy(), (1,2,0)),
                             original_image=norm_and_transpose_input_tensor(input_img_tensor),
                              method=method,
                              cmap=curr_cmap,

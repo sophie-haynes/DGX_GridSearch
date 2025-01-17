@@ -36,7 +36,7 @@ def make_occ_int_grad_model(model):
 	return occlusion_model
 
 
-def get_occ_int_grad_for_single_tensor(model, input_tensor, pred_label_idx):
+def get_occ_int_grad_for_single_tensor(model, input_tensor, pred_label_idx, single=False):
     if str(type(model)) == \
     "<class 'captum.attr._core.integrated_gradients.IntegratedGradients'>":
         attrs = model.attribute(
@@ -48,7 +48,7 @@ def get_occ_int_grad_for_single_tensor(model, input_tensor, pred_label_idx):
             input_tensor.unsqueeze(0), 
             target=pred_label_idx, 
             strides=(3, 8, 8), 
-            sliding_window_shapes=(3, 15, 15), 
+            sliding_window_shapes=(1, 15, 15) if single else (3, 15, 15), 
             baselines=0)
     
     return attrs

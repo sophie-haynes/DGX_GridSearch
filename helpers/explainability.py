@@ -112,7 +112,8 @@ def plot_ig_and_mask(attrs, img_tensor, bbox=None,
                      methods = ['blended_heat_map','blended_heat_map','blended_heat_map','masked_image'],
                      signs = ['positive','positive','negative','positive'], 
                      titles = ["Integrated Gradients", "Positive Attribution (Masked)", "Negative Attribution (Masked)", "Positive Mask"], 
-                     figsize = (18, 6)):
+                     figsize = (18, 6),
+                     single = False):
     plt_fig = figure(figsize=figsize)
     plt_axis_np = plt_fig.subplots(1, len(attrs), squeeze=True)
     for i in range(0,len(attrs)):
@@ -124,7 +125,8 @@ def plot_ig_and_mask(attrs, img_tensor, bbox=None,
                 title = titles[i],
                 method = methods[i],
                 sign = signs[i],
-                plt_fig_axis=(plt_fig, plt_axis_np[i]))
+                plt_fig_axis=(plt_fig, plt_axis_np[i]),
+                single=single)
         else:
             viz_intgrad(
 		        img_attr=attrs[i], 
@@ -132,7 +134,8 @@ def plot_ig_and_mask(attrs, img_tensor, bbox=None,
 		        title = titles[i],
 		        method = methods[i],
 		        sign = signs[i],
-                plt_fig_axis=(plt_fig, plt_axis_np[i])
+                plt_fig_axis=(plt_fig, plt_axis_np[i]),
+                single=single
             )
     plt_fig.tight_layout()
     show()

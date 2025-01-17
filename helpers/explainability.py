@@ -4,25 +4,25 @@ from captum.attr import visualization as viz
 from matplotlib.axes import Axes
 from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.patches import Rectangle
-from matplotlib.pyplot import figure
+from matplotlib.pyplot import figure, close, show
 import numpy as np
 
 from helpers.visualise import norm_and_transpose_input_tensor
 
 BLUE_CMAP = LinearSegmentedColormap.from_list('custom blue',
-                                                 [(0, '#ffffff'),
-                                                  (0.5, '#0000ff'),
-                                                  (1, '#a00ace')], N=256)
+                                                 [(0, (255/255,255/255,255/255,0)),
+                                                  (0.5, (0,0,255/255,1)),
+                                                  (1, (160/255,10/255,206/255,1))], N=256)
 
 ORED_CMAP = LinearSegmentedColormap.from_list('custom ored',
-                                                 [(0, '#ffffff'),
-                                                  (0.5, '#fc3802'),
-                                                  (1, '#840351')], N=256)
+                                                 [(0, (255/255,255/255,255/255,0)),
+                                                  (0.5, (252/255,56/255,2/255,1)),
+                                                  (1, (132/255,3/255,81/255,1))], N=256)
 
 GREEN_CMAP = LinearSegmentedColormap.from_list('custom green',
-                                                 [(0, '#ffffff'),
-                                                  (0.5, '#026d1b'),
-                                                  (1, '#02176d')], N=256)
+                                                 [(0, (255/255,255/255,255/255,0)),
+                                                  (0.5,(2/255,109/255,27/255,1) ),
+                                                  (1, (2/255,23/255,109/255,1))], N=256)
 
 
 def make_int_grad_model(model):
@@ -135,4 +135,6 @@ def plot_ig_and_mask(attrs, img_tensor, bbox=None,
                 plt_fig_axis=(plt_fig, plt_axis_np[i])
             )
     plt_fig.tight_layout()
+    show()
+    close(plt_fig)
 

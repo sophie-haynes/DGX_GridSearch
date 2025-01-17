@@ -54,6 +54,8 @@ def convert_to_single_channel(model):
 def load_trained_resnet50(model_path, single=False, num_classes=2,device=None):
     """Helper to load model from training for evaluation."""
     model = resnet50(weights=None)
+    if single:
+        model = convert_to_single_channel(model)
     # get input shape
     num_ftrs = model.fc.in_features
     # add linear classifer

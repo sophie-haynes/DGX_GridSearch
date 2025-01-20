@@ -56,7 +56,7 @@ def get_occ_int_grad_for_single_tensor(model, input_tensor, pred_label_idx, sing
 
 def viz_intgrad_with_bbox(img_attr, input_img_tensor, bbox, title,
     sign='positive', method='blended_heat_map', use_blue=False,
-    plt_fig_axis=None, single=False):
+    plt_fig_axis=None):
     """
     Helper function to generate CXR plot with int grad attributions and BBox.
 
@@ -72,7 +72,7 @@ def viz_intgrad_with_bbox(img_attr, input_img_tensor, bbox, title,
     else:
         curr_cmap = ORED_CMAP
     
-    _ = viz.visualize_image_attr(attr=np.transpose(img_attr.cpu().detach().numpy(), (1,2,0)) if single else np.transpose(img_attr.squeeze().cpu().detach().numpy(), (1,2,0)),
+    _ = viz.visualize_image_attr(attr=np.transpose(img_attr.squeeze().cpu().detach().numpy(), (1,2,0)),
                             original_image=norm_and_transpose_input_tensor(input_img_tensor),
                              method=method,
                              cmap=curr_cmap,
@@ -87,7 +87,7 @@ def viz_intgrad_with_bbox(img_attr, input_img_tensor, bbox, title,
 
 
 def viz_intgrad(img_attr, input_img_tensor, title, sign='positive', method='blended_heat_map',
-	use_blue=False, plt_fig_axis=None, single=False):
+	use_blue=False, plt_fig_axis=None):
     """Helper function to generate CXR plot with int grad attributions."""
     if use_blue or sign=="all":
         curr_cmap = BLUE_CMAP
@@ -96,7 +96,7 @@ def viz_intgrad(img_attr, input_img_tensor, title, sign='positive', method='blen
     else:
         curr_cmap = ORED_CMAP
     
-    _ = viz.visualize_image_attr(attr=np.transpose(img_attr.cpu().detach().numpy(), (1,2,0)) if single else np.transpose(img_attr.squeeze().cpu().detach().numpy(), (1,2,0)),
+    _ = viz.visualize_image_attr(attr=np.transpose(img_attr.squeeze().cpu().detach().numpy(), (1,2,0)),
                             original_image=norm_and_transpose_input_tensor(input_img_tensor),
                              method=method,
                              cmap=curr_cmap,
@@ -117,16 +117,21 @@ def plot_ig_and_mask(attrs, img_tensor, bbox=None,
     plt_fig = figure(figsize=figsize)
     plt_axis_np = plt_fig.subplots(1, len(attrs), squeeze=True)
     for i in range(0,len(attrs)):
+        if single:
+            img_attr = attrs[i].expand(3, *attrs[i].shape[1:])
+            input_img_tensor = img_tensor.expand(3, *img_tensor.shape[1:])
+        else:
+            img_attr = attrs[i]
+            input_img_tensor = img_tensor
         if bbox:
             viz_intgrad_with_bbox(
-                img_attr=attrs[i], 
-                input_img_tensor= img_tensor, 
+                img_attr=img_attr, 
+                input_img_tensor= input_img_tensor, 
                 bbox = bbox,
                 title = titles[i],
                 method = methods[i],
                 sign = signs[i],
-                plt_fig_axis=(plt_fig, plt_axis_np[i]),
-                single=single)
+                plt_fig_axis=(plt_fig, plt_axis_np[i]))
         else:
             viz_intgrad(
 		        img_attr=attrs[i], 
@@ -134,9 +139,7 @@ def plot_ig_and_mask(attrs, img_tensor, bbox=None,
 		        title = titles[i],
 		        method = methods[i],
 		        sign = signs[i],
-                plt_fig_axis=(plt_fig, plt_axis_np[i]),
-                single=single
-            )
+                plt_fig_axis=(plt_fig, plt_axis_np[i]))
     plt_fig.tight_layout()
     show()
     close(plt_fig)

@@ -51,9 +51,6 @@ lung_seg_dict = {
     'padchest': [[60.5482], [66.5276]],
     'padcxr14' : [[60.61455], [67.7468]]
 }
-
-additional_norms = [v2.ToDtype(torch.uint8, scale=False), v2.ToDtype(torch.float32, scale=True),v2.Normalize(mean=[0.5], std=[0.5])]
-
 def get_cxr_train_transforms(crop_size,normalise,single=False):
     if single:
         grey = v2.Grayscale(num_output_channels=1)
@@ -275,16 +272,13 @@ def run_model_training(model, bsz, lr, momentum, seed, pos_class_weight, target_
     if args.process == "crop":
         mean = crop_dict[args.train_set][0]
         std = crop_dict[args.train_set][1]
-        dict_in_use = crop_dict
     elif args.process == "arch_seg":
         mean = arch_seg_dict[args.train_set][0]
         std = arch_seg_dict[args.train_set][1]
         std_dir = "flat_std_1024"
-        dict_in_use = arch_seg_dict
     elif args.process == "lung_seg":
         mean = lung_seg_dict[args.train_set][0]
         std = lung_seg_dict[args.train_set][1]
-        dict_in_use = lung_seg_dict
     else:
         raise ValueError("Invalid process value. Must be 'crop', 'arch_seg', or 'lung_seg'.")
 
@@ -298,11 +292,6 @@ def run_model_training(model, bsz, lr, momentum, seed, pos_class_weight, target_
     train_transform = get_cxr_train_transforms(args.crop_size, normalise, single)
     test_transform = get_cxr_eval_transforms(args.crop_size, normalise, single)
 
-    # force range to [-1,1] using torch.float32 with scaling (to [0,1]) then norm with 0.5 (to [-1,1])
-    if(args.force_norm):
-        train_transform += additional_norms
-        test_transform += additional_norms
-    
     # Load datasets
     if args.train_set != "padcxr14":
         # train_path = os.path.join(args.data_root, args.train_set, args.process, std_dir, "train")
@@ -314,20 +303,14 @@ def run_model_training(model, bsz, lr, momentum, seed, pos_class_weight, target_
         train_path = os.path.join(args.data_root, args.train_set, "train")
         test_path = os.path.join(args.data_root, args.train_set, "test")
         ext1_path = os.path.join(args.data_root, ext_names[0], "test")
-        # ext1_trs = get_cxr_eval_transforms(args.crop_size, v2.Normalize(mean=dict_in_use[ext_names[0]][0], std=dict_in_use[ext_names[0]][1]), single) + (additional_norms if args.force_norm else [])
         ext2_path = os.path.join(args.data_root, ext_names[1],  "test")
-        # ext2_trs = get_cxr_eval_transforms(args.crop_size, v2.Normalize(mean=dict_in_use[ext_names[1]][0], std=dict_in_use[ext_names[1]][1]), single) + (additional_norms if args.force_norm else [])
         ext3_path = os.path.join(args.data_root, ext_names[2], "test")
-        # ext3_trs = get_cxr_eval_transforms(args.crop_size, v2.Normalize(mean=dict_in_use[ext_names[1]][2], std=dict_in_use[ext_names[1]][2]), single) + (additional_norms if args.force_norm else [])
 
         trainset = torchvision.datasets.ImageFolder(root=train_path, transform= v2.Compose(train_transform))
         testset = torchvision.datasets.ImageFolder(root=test_path, transform=v2.Compose(test_transform))
         ext1set = torchvision.datasets.ImageFolder(root=ext1_path, transform=v2.Compose(test_transform))
         ext2set = torchvision.datasets.ImageFolder(root=ext2_path, transform=v2.Compose(test_transform))
         ext3set = torchvision.datasets.ImageFolder(root=ext3_path, transform=v2.Compose(test_transform))
-        # ext1set = torchvision.datasets.ImageFolder(root=ext1_path, transform=v2.Compose(ext1_trs))
-        # ext2set = torchvision.datasets.ImageFolder(root=ext2_path, transform=v2.Compose(ext2_trs))
-        # ext3set = torchvision.datasets.ImageFolder(root=ext3_path, transform=v2.Compose(ext3_trs))
     
         trainloader = torch.utils.data.DataLoader(trainset, batch_size=bsz, shuffle=True, num_workers=args.num_workers, pin_memory=True)
         testloader = torch.utils.data.DataLoader(testset, batch_size=bsz, shuffle=False, num_workers=args.num_workers, pin_memory=True)
@@ -341,17 +324,13 @@ def run_model_training(model, bsz, lr, momentum, seed, pos_class_weight, target_
         test_path1 = os.path.join(args.data_root,"padcxr14", "test",'cxr14')
         test_path2 = os.path.join(args.data_root,"padcxr14", "test",'padchest')
         ext2_path = os.path.join(args.data_root, ext_names[0], "test")
-        # ext2_trs = get_cxr_eval_transforms(args.crop_size, v2.Normalize(mean=dict_in_use[ext_names[0]][0], std=dict_in_use[ext_names[0]][1]), single) + (additional_norms if args.force_norm else [])
         ext3_path = os.path.join(args.data_root, ext_names[1], "test")
-        # ext3_trs = get_cxr_eval_transforms(args.crop_size, v2.Normalize(mean=dict_in_use[ext_names[1]][0], std=dict_in_use[ext_names[1]][1]), single) + (additional_norms if args.force_norm else [])
 
         trainset = torchvision.datasets.ImageFolder(root=train_path, transform= v2.Compose(train_transform))
         testset1 = torchvision.datasets.ImageFolder(root=test_path1, transform=v2.Compose(test_transform))
         testset2 = torchvision.datasets.ImageFolder(root=test_path2, transform=v2.Compose(test_transform))
         ext2set = torchvision.datasets.ImageFolder(root=ext2_path, transform=v2.Compose(test_transform))
         ext3set = torchvision.datasets.ImageFolder(root=ext3_path, transform=v2.Compose(test_transform))
-        # ext2set = torchvision.datasets.ImageFolder(root=ext2_path, transform=v2.Compose(ext2_trs))
-        # ext3set = torchvision.datasets.ImageFolder(root=ext3_path, transform=v2.Compose(ext3_trs))
     
         trainloader = torch.utils.data.DataLoader(trainset, batch_size=bsz, shuffle=True, num_workers=args.num_workers, pin_memory=True)
         testloader1 = torch.utils.data.DataLoader(testset1, batch_size=bsz, shuffle=False, num_workers=args.num_workers, pin_memory=True)
@@ -612,8 +591,7 @@ def parse_args():
     # Step Decay for final fine tunings
     parser.add_argument("--step_decay_epochs", type=int, help="Learning rate decay after number of these epochs")
     parser.add_argument("--step_decay_gamma", type=float, default=0.1, help="Learning rate decay amount")
-    parser.add_argument("--force_norm", action="store_true", 
-                    help="Adds additional image transforms to force image range to [-1,1]") 
+
     return parser.parse_args()
 
 

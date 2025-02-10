@@ -203,7 +203,7 @@ def df_cc_bboxes_by_dbscan(df, max_distance=10, min_samples=1, margin=0, x_shape
     
     for label in unique_labels:
         # cluster_points = centroids[labels == label]
-        cluster_df = test_df[labels==label]
+        cluster_df = df[labels==label]
         
         # Calculate the bounding box for the cluster
         # x_min = np.min(cluster_points[:, 0])

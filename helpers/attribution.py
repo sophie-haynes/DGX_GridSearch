@@ -177,7 +177,7 @@ def get_area_thresheld_connected_components(mask, size_thresh = 1, img=None):
             h = stats[i, cv2.CC_STAT_HEIGHT]
             size_thresh_idx.append(i)
             # Add a new row using loc[]
-            df.loc[len(df)] = [centroids[i], x, x+w, y-h, y]
+            df.loc[len(df)] = [centroids[i], x, x+w, y, y+h]
             if img is not None:
                 cv2.rectangle(copy_img, (x, y), (x+w, y+h), (0, 255, 0), thickness=1)
                 cv2.circle(copy_img, centroids[i].astype(int), 1, (255,0,0), thickness=1)

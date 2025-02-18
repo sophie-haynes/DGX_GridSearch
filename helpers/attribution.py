@@ -227,3 +227,14 @@ def df_cc_bboxes_by_dbscan(df, max_distance=10, min_samples=1, margin=0, x_shape
     
     return grouped_bboxes
     
+def load_attr(pth):
+    """Helper function to load exported attribute masks.
+    
+    Args:
+    - pth (string): path to attribution file
+
+    Returns:
+    - attr: attribute mask array 
+    """
+    attr_mask = cv2.imread(pth)
+    return attr_mask[:,:,0]

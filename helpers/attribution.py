@@ -2,6 +2,7 @@ import cv2
 from helpers.explainability import get_occ_int_grad_for_single_tensor
 import matplotlib.pyplot as plt
 import numpy as np
+import os
 import pandas as pd
 from sklearn.cluster import DBSCAN
 
@@ -189,7 +190,7 @@ def get_area_thresheld_connected_components(mask, size_thresh = 1, img=None):
     # return centroids[size_thresh_idx].astype(int)
 
 def df_cc_bboxes_by_dbscan(df, max_distance=10, min_samples=1, margin=0, x_shape=512, y_shape=512, thresh_area = 4):
-    """Generate b"""
+    """Generate groupings of adjacent bounding boxes using DBSCAN"""
     # get centroids from df and convert into correct format
     centroids = np.array(df['centroid'].values.tolist())
     # apply DBSCAN to centroids
@@ -238,3 +239,52 @@ def load_attr(pth):
     """
     attr_mask = cv2.imread(pth)
     return attr_mask[:,:,0]
+
+def get_attr_pth(base_dir="/home/local/data/sophie/DGX_GridSearch/attributions",
+                 attr_type, model_type, model_number, image_name):
+    """
+    Craft path to exported attribute. Assumes path structure of :
+    `[base_dir]/[attr_type]/[model_type]/[model_number]/[image_name]`.
+    e.g.:
+    `data/occlusion/base/model1/n00023.png`
+    """
+    # add attr type to path
+    if "occ" in attr_type.lower():
+        base_dir = os.path.join(base_dir, "occlusion")
+    elif "int" in attr_type.lower():
+        base_dir = os.path.join(base_dir, "intgrad")
+    else:
+        raise ValueError("Please specify whether intgrad or occlusion is being loaded")
+
+    # add model type to path
+    if "base" in model_type.lower():
+        base_dir = os.path.join(base_dir, "base")
+    elif "grey" in model_type.lower():
+        base_dir = os.path.join(base_dir, "grey")
+    elif "single" in model_type.lower():
+        base_dir = os.path.join(base_dir, "single")
+    else:
+        raise ValueError("Please specify whether model is of type base, grey, or single")
+    
+    # add model number to path
+    model_number = int(model_number)
+    if model_number == 42 or model_number == 1:
+        base_dir = os.path.join(base_dir, "model1")
+    elif model_number == 43 or model_number == 2:
+        base_dir = os.path.join(base_dir, "model2")
+    elif model_number == 44 or model_number == 3:
+        base_dir = os.path.join(base_dir, "model3")
+    else:
+        raise ValueError("Please specify either model seed (42, 43, 44) or model run number (1, 2, 3)")
+
+    # add image name to path
+    if "n" in image_name.lower():
+        if ".png" not in image_name.lower():
+            image_name += ".png"
+        base_dir = os.path.join(base_dir, image_name)
+    else:
+        raise ValueError("Method only supports loading nodule images")
+    
+    return base_dir
+
+    

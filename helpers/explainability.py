@@ -40,20 +40,23 @@ def make_occ_int_grad_model(model):
 	return occlusion_model
 
 
-def get_occ_int_grad_for_single_tensor(model, input_tensor, pred_label_idx, single=False):
+def get_occ_int_grad_for_single_tensor(model, input_tensor, pred_label_idx, single=False, baseline=0,method='gausslegendre', window=15):
     if str(type(model)) == \
     "<class 'captum.attr._core.integrated_gradients.IntegratedGradients'>":
         attrs = model.attribute(
             input_tensor.unsqueeze(0), 
             target=pred_label_idx, 
-            n_steps=40)
+            n_steps=40, 
+            baselines=baseline,
+            method=method
+        )
     else:
         attrs = model.attribute(
             input_tensor.unsqueeze(0), 
             target=pred_label_idx, 
-            strides=(3, 8, 8), 
-            sliding_window_shapes=(1, 15, 15) if single else (3, 15, 15), 
-            baselines=0)
+            strides= (3, -(-window // 2), -(-window // 2)) if window <15 else(3, 8, 8), 
+            sliding_window_shapes=(1, window, window) if single else (3, window, window), 
+            baselines=baseline)
     
     return attrs
 
@@ -147,4 +150,3 @@ def plot_ig_and_mask(attrs, img_tensor, bbox=None,
     plt_fig.tight_layout()
     show()
     close(plt_fig)
-

@@ -1,5 +1,6 @@
 import csv
 from torch import zeros_like
+import numpy as np 
 
 def resize_bboxes(bboxes, original_size, target_size=512):
     """
@@ -65,4 +66,24 @@ def calculate_cam_iou(cam_mask, bounding_boxes):
         ious.append(iou.item())
 
     return ious
+#  ==========================================
 
+# calculations
+
+def get_iou(true_bbox, pred_bbox):
+    intersect_x1 = np.max(true_bbox[0], pred_bbox[0])
+    intersect_y1 = np.max(true_bbox[1], pred_bbox[1])
+    intersect_x2 = np.min(true_bbox[3], pred_bbox[3])
+    intersect_y2 = np.min(true_bbox[4], pred_bbox[4])
+    intersect_height = np.max(intersect_y2-intersect_y1, np.array(0.))
+    intersect_width = np.max(intersect_x2-intersect_x1, np.array(0.))
+    intersect_area = intersect_height*intersect_width
+
+    true_height = true_bbox[3] - true_bbox[1]
+    true_width =  true_bbox[2] - true_bbox[1]
+    pred_height = pred_bbox[3] - pred_bbox[1]
+    pred_width =  pred_bbox[2] - pred_bbox[1]
+    
+    union_area = true_height*true_width + pred_height * pred_width - intersect_area
+    iou = intersect_area / union_area
+    

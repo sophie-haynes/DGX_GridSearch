@@ -51,11 +51,12 @@ def get_occ_int_grad_for_single_tensor(model, input_tensor, pred_label_idx, sing
             method=method
         )
     else:
+        channels = 1 if single else 3
         attrs = model.attribute(
             input_tensor.unsqueeze(0), 
             target=pred_label_idx, 
-            strides= (3, -(-window // 2), -(-window // 2)) if window <15 else(3, 8, 8), 
-            sliding_window_shapes=(1, window, window) if single else (3, window, window), 
+            strides= (channels, -(-window // 2), -(-window // 2)) if window <15 else(channels, 8, 8), 
+            sliding_window_shapes=(channels, window, window),
             baselines=baseline)
     
     return attrs

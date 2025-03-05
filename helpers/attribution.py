@@ -7,6 +7,7 @@ import pandas as pd
 from sklearn.cluster import DBSCAN
 
 def convert_to_uint8(image):
+    """Helper function to convert images to cv2-compatible uint8 format. """
     uint8_image = image-image.min()
     uint8_image = uint8_image / uint8_image.max() * 255
     uint8_image = uint8_image.astype(np.uint8)
@@ -16,19 +17,19 @@ def get_attrs(image, label, model, int_model=None, occ_model=None, device="cpu",
     """
     Get occlusion and integrated gradient attributions for a given image.
 
-    Args:
-    - image (torch.float Tensor): The input image.
-    - label (int): Index of image label (0: "Normal", 1: "Nodule").
-    - model (torchvision model): Inference model to obtain attributions from. 
-    - int_model (optional, Captum IntegratedGradients model): Int Grad model based on inference model.
-    - occ_model (optional, Captum Occlusion model): Occlusion model based on inference model.
-    - device (torch.device): Device to perform caluclations on (CUDA/CPU).
-    - single (boolean): Indicate whether image and model are single channel.
-    - window (int): Window size for occlusion window.
+    Args: 
+        image (torch.float Tensor): The input image
+        label (int): Index of image label (0: "Normal", 1: "Nodule").
+        model (torchvision model): Inference model to obtain attributions from. 
+        int_model (optional, Captum IntegratedGradients model): Int Grad model based on inference model.
+        occ_model (optional, Captum Occlusion model): Occlusion model based on inference model.
+        device (torch.device): Device to perform caluclations on (CUDA/CPU).
+        single (boolean): Indicate whether image and model are single channel.
+        window (int): Window size for occlusion window.
 
     Returns:
-    - int_attr
-    - occ_attr
+        int_attr: Integrated gradient attribution
+        occ_attr: Occlusion attribution
     """
     
     model=model.to(device)
@@ -57,12 +58,12 @@ def get_area_thresheld_connected_components(mask, size_thresh = 1, img=None):
     Returns connected components from mask.
 
     Args:
-    - mask (): Single channel attributtion mask
-    - size_thresh (int, optional): minimum area for connected component
+        mask (): Single channel attributtion mask
+        size_thresh (int, optional): minimum area for connected component
 
     Returns:
-    - df (DataFrame): ["centroid","xmin","xmax","ymin","ymax"]
-    - centroids (2D Numpy array): array of [x,y] pairs
+        df (DataFrame): ["centroid","xmin","xmax","ymin","ymax"]
+        centroids (2D Numpy array): array of [x,y] pairs
     
     """
     df = pd.DataFrame(columns=["centroid","xmin","xmax","ymin","ymax"])
@@ -95,12 +96,12 @@ def attribution_bbox_with_connected_components(mask, size_thresh = 1, img=None):
     Returns connected components from mask.
 
     Args:
-    - mask (): Single channel attributtion mask
-    - size_thresh (int, optional): minimum area for connected component
+        mask (array): Single channel attributtion mask
+        size_thresh (int, optional): minimum area for connected component
 
     Returns:
-    - df (DataFrame): ["centroid","xmin","xmax","ymin","ymax"]
-    - centroids (2D Numpy array): array of [x,y] pairs
+        pandas.DataFrame: Connected components with cols ["centroid","xmin","xmax","ymin","ymax"].
+        2D Numpy array: centroids, array of [x,y] pairs
     
     """
     df = pd.DataFrame(columns=["centroid","xmin","xmax","ymin","ymax"])
@@ -131,7 +132,9 @@ def attribution_bbox_with_connected_components(mask, size_thresh = 1, img=None):
         
     
 def plt_area_thresheld_connected_components(mask, plot_image, size_thresh = 1):
-    """Visualise the connected componenents and centroids"""
+    """
+    Visualise the connected componenents and centroids
+    """
     # duplicate image to prevent overwriting base
     copy_img = convert_to_uint8(plot_image.copy())
     # generate cc
@@ -156,12 +159,12 @@ def get_area_thresheld_connected_components(mask, size_thresh = 1, img=None):
     Returns connected components from mask.
 
     Args:
-    - mask (): Single channel attributtion mask
-    - size_thresh (int, optional): minimum area for connected component
+        mask (array): Single channel attributtion mask
+        size_thresh (int, optional): minimum area for connected component
 
     Returns:
-    - df (DataFrame): ["centroid","xmin","xmax","ymin","ymax"]
-    - centroids (2D Numpy array): array of [x,y] pairs
+        df (DataFrame): ["centroid","xmin","xmax","ymin","ymax"]
+        centroids (2D Numpy array): array of [x,y] pairs
     
     """
     df = pd.DataFrame(columns=["centroid","xmin","xmax","ymin","ymax"])
@@ -190,7 +193,9 @@ def get_area_thresheld_connected_components(mask, size_thresh = 1, img=None):
     # return centroids[size_thresh_idx].astype(int)
 
 def df_cc_bboxes_by_dbscan(df, max_distance=10, min_samples=1, margin=0, x_shape=512, y_shape=512, thresh_area = 4):
-    """Generate groupings of adjacent bounding boxes using DBSCAN"""
+    """
+    Generate groupings of adjacent bounding boxes using DBSCAN
+    """
     # get centroids from df and convert into correct format
     centroids = np.array(df['centroid'].values.tolist())
     # apply DBSCAN to centroids
@@ -232,21 +237,29 @@ def load_attr(pth):
     """Helper function to load exported attribute masks.
     
     Args:
-    - pth (string): path to attribution file
+        pth (string): path to attribution file
 
     Returns:
-    - attr: attribute mask array 
+        attr: attribute mask array 
     """
     attr_mask = cv2.imread(pth)
     return attr_mask[:,:,0]
 
-def get_attr_pth(base_dir="/home/local/data/sophie/DGX_GridSearch/attributions",
-                 attr_type, model_type, model_number, image_name):
+def get_attr_pth(attr_type, model_type, model_number, image_name, base_dir="/home/local/data/sophie/DGX_GridSearch/attributions"):
     """
     Craft path to exported attribute. Assumes path structure of :
     `[base_dir]/[attr_type]/[model_type]/[model_number]/[image_name]`.
+    
     e.g.:
     `data/occlusion/base/model1/n00023.png`
+
+
+    Args:
+        attr_type: Expects 'occ' or 'int'
+        model_type: Expects 'base','grey' or 'single'
+        model_number: Expects seed (42,43,44) or run number (1,2,3)
+        image_name: Expects nodule image name (e.g. 'n0023.png')
+        
     """
     # add attr type to path
     if "occ" in attr_type.lower():

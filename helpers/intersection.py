@@ -33,8 +33,8 @@ def calculate_iou(true_bbox, pred_bbox):
     return intersect_area / union_area
 
 def calculate_intersect_coverage(true_bbox, pred_bbox):
-    x1_true, x2_true,y1_true, y2_true = true_bbox
-    x1_pred, x2_pred,y1_pred, y2_pred = pred_bbox
+    x1_true, y1_true, x2_true, y2_true = true_bbox
+    x1_pred, y1_pred, x2_pred, y2_pred = pred_bbox
     
     true_height = true_bbox[3] - true_bbox[1]+1
     true_width =  true_bbox[2] - true_bbox[0]+1

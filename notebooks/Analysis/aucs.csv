@@ -1,0 +1,217 @@
+﻿strategy,weight_type,run_number,test_set,auc
+Half Network,Base,1,internal,0.8728
+Half Network,Base,2,internal,0.8802
+Half Network,Base,3,internal,0.8809
+Half Network,Base65,1,internal,0.8622
+Half Network,Base65,2,internal,0.8704
+Half Network,Base65,3,internal,0.8622
+Half Network,Grey,1,internal,0.8651
+Half Network,Grey,2,internal,0.8434
+Half Network,Grey,3,internal,0.8706
+Half Network,Grey65,1,internal,0.8813
+Half Network,Grey65,2,internal,0.8537
+Half Network,Grey65,3,internal,0.8764
+Half Network,Single,1,internal,0.8662
+Half Network,Single,2,internal,0.8657
+Half Network,Single,3,internal,0.858
+Half Network,Single65,1,internal,0.8576
+Half Network,Single65,2,internal,0.87
+Half Network,Single65,3,internal,0.8586
+Half Network,Base,1,external 1,0.8326
+Half Network,Base,2,external 1,0.8172
+Half Network,Base,3,external 1,0.782
+Half Network,Base65,1,external 1,0.8264
+Half Network,Base65,2,external 1,0.768
+Half Network,Base65,3,external 1,0.8394
+Half Network,Grey,1,external 1,0.8026
+Half Network,Grey,2,external 1,0.7819
+Half Network,Grey,3,external 1,0.8242
+Half Network,Grey65,1,external 1,0.8061
+Half Network,Grey65,2,external 1,0.7471
+Half Network,Grey65,3,external 1,0.779
+Half Network,Single,1,external 1,0.8542
+Half Network,Single,2,external 1,0.7644
+Half Network,Single,3,external 1,0.7897
+Half Network,Single65,1,external 1,0.7679
+Half Network,Single65,2,external 1,0.7797
+Half Network,Single65,3,external 1,0.8429
+Half Network,Base,1,external 2,0.7956
+Half Network,Base,2,external 2,0.7706
+Half Network,Base,3,external 2,0.761
+Half Network,Base65,1,external 2,0.8056
+Half Network,Base65,2,external 2,0.834
+Half Network,Base65,3,external 2,0.8477
+Half Network,Grey,1,external 2,0.8471
+Half Network,Grey,2,external 2,0.8224
+Half Network,Grey,3,external 2,0.8285
+Half Network,Grey65,1,external 2,0.8261
+Half Network,Grey65,2,external 2,0.8193
+Half Network,Grey65,3,external 2,0.822
+Half Network,Single,1,external 2,0.8512
+Half Network,Single,2,external 2,0.6992
+Half Network,Single,3,external 2,0.8097
+Half Network,Single65,1,external 2,0.7922
+Half Network,Single65,2,external 2,0.7774
+Half Network,Single65,3,external 2,0.8001
+Half Network,Base,1,external 3,0.6312
+Half Network,Base,2,external 3,0.6349
+Half Network,Base,3,external 3,0.6417
+Half Network,Base65,1,external 3,0.6987
+Half Network,Base65,2,external 3,0.6656
+Half Network,Base65,3,external 3,0.7101
+Half Network,Grey,1,external 3,0.636
+Half Network,Grey,2,external 3,0.6302
+Half Network,Grey,3,external 3,0.6807
+Half Network,Grey65,1,external 3,0.6389
+Half Network,Grey65,2,external 3,0.562
+Half Network,Grey65,3,external 3,0.6138
+Half Network,Single,1,external 3,0.6533
+Half Network,Single,2,external 3,0.6315
+Half Network,Single,3,external 3,0.6193
+Half Network,Single65,1,external 3,0.6279
+Half Network,Single65,2,external 3,0.625
+Half Network,Single65,3,external 3,0.6069
+First Layer,Base,1,internal,0.9224
+First Layer,Base,2,internal,0.9049
+First Layer,Base,3,internal,0.9204
+First Layer,Base65,1,internal,0.9255
+First Layer,Base65,2,internal,0.8923
+First Layer,Base65,3,internal,0.9134
+First Layer,Grey,1,internal,0.929
+First Layer,Grey,2,internal,0.9235
+First Layer,Grey,3,internal,0.9197
+First Layer,Grey65,1,internal,0.93
+First Layer,Grey65,2,internal,0.9059
+First Layer,Grey65,3,internal,0.9122
+First Layer,Single,1,internal,0.9103
+First Layer,Single,2,internal,0.9168
+First Layer,Single,3,internal,0.9155
+First Layer,Single65,1,internal,0.9018
+First Layer,Single65,2,internal,0.8958
+First Layer,Single65,3,internal,0.9254
+First Layer,Base,1,external 1,0.8873
+First Layer,Base,2,external 1,0.8977
+First Layer,Base,3,external 1,0.8799
+First Layer,Base65,1,external 1,0.9224
+First Layer,Base65,2,external 1,0.8918
+First Layer,Base65,3,external 1,0.8852
+First Layer,Grey,1,external 1,0.9073
+First Layer,Grey,2,external 1,0.8854
+First Layer,Grey,3,external 1,0.891
+First Layer,Grey65,1,external 1,0.907
+First Layer,Grey65,2,external 1,0.8713
+First Layer,Grey65,3,external 1,0.9052
+First Layer,Single,1,external 1,0.8696
+First Layer,Single,2,external 1,0.8703
+First Layer,Single,3,external 1,0.9206
+First Layer,Single65,1,external 1,0.8735
+First Layer,Single65,2,external 1,0.8701
+First Layer,Single65,3,external 1,0.8967
+First Layer,Base,1,external 2,0.9139
+First Layer,Base,2,external 2,0.8834
+First Layer,Base,3,external 2,0.8999
+First Layer,Base65,1,external 2,0.8981
+First Layer,Base65,2,external 2,0.9115
+First Layer,Base65,3,external 2,0.87
+First Layer,Grey,1,external 2,0.9153
+First Layer,Grey,2,external 2,0.9023
+First Layer,Grey,3,external 2,0.9081
+First Layer,Grey65,1,external 2,0.9318
+First Layer,Grey65,2,external 2,0.8755
+First Layer,Grey65,3,external 2,0.9324
+First Layer,Single,1,external 2,0.9005
+First Layer,Single,2,external 2,0.8957
+First Layer,Single,3,external 2,0.9081
+First Layer,Single65,1,external 2,0.9126
+First Layer,Single65,2,external 2,0.8944
+First Layer,Single65,3,external 2,0.8988
+First Layer,Base,1,external 3,0.7245
+First Layer,Base,2,external 3,0.6935
+First Layer,Base,3,external 3,0.7659
+First Layer,Base65,1,external 3,0.7545
+First Layer,Base65,2,external 3,0.7245
+First Layer,Base65,3,external 3,0.7578
+First Layer,Grey,1,external 3,0.7129
+First Layer,Grey,2,external 3,0.7039
+First Layer,Grey,3,external 3,0.729
+First Layer,Grey65,1,external 3,0.7738
+First Layer,Grey65,2,external 3,0.6977
+First Layer,Grey65,3,external 3,0.7005
+First Layer,Single,1,external 3,0.7053
+First Layer,Single,2,external 3,0.7386
+First Layer,Single,3,external 3,0.7456
+First Layer,Single65,1,external 3,0.7202
+First Layer,Single65,2,external 3,0.6391
+First Layer,Single65,3,external 3,0.7283
+Full Network,Base,1,internal,0.9031
+Full Network,Base,2,internal,0.9116
+Full Network,Base,3,internal,0.913
+Full Network,Base65,1,internal,0.917
+Full Network,Base65,2,internal,0.924
+Full Network,Base65,3,internal,0.931
+Full Network,Grey,1,internal,0.9211
+Full Network,Grey,2,internal,0.9208
+Full Network,Grey,3,internal,0.9184
+Full Network,Grey65,1,internal,0.918
+Full Network,Grey65,2,internal,0.897
+Full Network,Grey65,3,internal,0.9141
+Full Network,Single,1,internal,0.9128
+Full Network,Single,2,internal,0.9151
+Full Network,Single,3,internal,0.918
+Full Network,Single65,1,internal,0.924
+Full Network,Single65,2,internal,0.907
+Full Network,Single65,3,internal,0.9172
+Full Network,Base,1,external 1,0.8798
+Full Network,Base,2,external 1,0.891
+Full Network,Base,3,external 1,0.8958
+Full Network,Base65,1,external 1,0.8885
+Full Network,Base65,2,external 1,0.9098
+Full Network,Base65,3,external 1,0.9089
+Full Network,Grey,1,external 1,0.8898
+Full Network,Grey,2,external 1,0.8958
+Full Network,Grey,3,external 1,0.9104
+Full Network,Grey65,1,external 1,0.8915
+Full Network,Grey65,2,external 1,0.884
+Full Network,Grey65,3,external 1,0.8974
+Full Network,Single,1,external 1,0.8837
+Full Network,Single,2,external 1,0.9014
+Full Network,Single,3,external 1,0.9024
+Full Network,Single65,1,external 1,0.9004
+Full Network,Single65,2,external 1,0.9014
+Full Network,Single65,3,external 1,0.9179
+Full Network,Base,1,external 2,0.9143
+Full Network,Base,2,external 2,0.9105
+Full Network,Base,3,external 2,0.9005
+Full Network,Base65,1,external 2,0.9126
+Full Network,Base65,2,external 2,0.8807
+Full Network,Base65,3,external 2,0.8735
+Full Network,Grey,1,external 2,0.9215
+Full Network,Grey,2,external 2,0.9009
+Full Network,Grey,3,external 2,0.8957
+Full Network,Grey65,1,external 2,0.9012
+Full Network,Grey65,2,external 2,0.93
+Full Network,Grey65,3,external 2,0.9232
+Full Network,Single,1,external 2,0.8848
+Full Network,Single,2,external 2,0.8957
+Full Network,Single,3,external 2,0.9335
+Full Network,Single65,1,external 2,0.9005
+Full Network,Single65,2,external 2,0.9071
+Full Network,Single65,3,external 2,0.8851
+Full Network,Base,1,external 3,0.7795
+Full Network,Base,2,external 3,0.7651
+Full Network,Base,3,external 3,0.7114
+Full Network,Base65,1,external 3,0.7136
+Full Network,Base65,2,external 3,0.6856
+Full Network,Base65,3,external 3,0.7723
+Full Network,Grey,1,external 3,0.6986
+Full Network,Grey,2,external 3,0.6585
+Full Network,Grey,3,external 3,0.731
+Full Network,Grey65,1,external 3,0.6508
+Full Network,Grey65,2,external 3,0.6886
+Full Network,Grey65,3,external 3,0.7042
+Full Network,Single,1,external 3,0.7158
+Full Network,Single,2,external 3,0.7009
+Full Network,Single,3,external 3,0.753
+Full Network,Single65,1,external 3,0.7441
+Full Network,Single65,2,external 3,0.703
+Full Network,Single65,3,external 3,0.7277
